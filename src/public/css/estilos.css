@@ -1,0 +1,117 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f5f6f8;
+  color: #1c1e21;
+}
+
+.pagina-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+.tarjeta-login {
+  background: #fff;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tarjeta-login h1 { margin: 0; font-size: 22px; }
+.subtitulo { margin: 0 0 8px; color: #666; font-size: 14px; }
+.tarjeta-login label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.tarjeta-login input {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+}
+.tarjeta-login button {
+  margin-top: 8px;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: #2e7d32;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+.mensaje-error {
+  background: #fdecea;
+  color: #c0392b;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+}
+.encabezado-usuario { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.boton-enlace {
+  background: none;
+  border: none;
+  color: #2e7d32;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 14px;
+}
+.punto-conexion {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #bbb;
+  margin-left: 8px;
+}
+.punto-conexion.conectado { background: #2e7d32; }
+
+.contenedor-bandeja { padding: 20px; }
+.tabla-bandeja { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
+.tabla-bandeja th, .tabla-bandeja td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+.tabla-bandeja th { background: #fafafa; font-weight: 600; color: #555; }
+
+.etiqueta { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.etiqueta-caliente { background: #ffe0e0; color: #c0392b; }
+.etiqueta-tibio { background: #fff4d6; color: #a67c00; }
+.etiqueta-frio { background: #e3f2fd; color: #1565c0; }
+.etiqueta-sin_definir { background: #eee; color: #666; }
+.etiqueta-bot { background: #ede7f6; color: #5e35b1; }
+.etiqueta-intervenida { background: #e8f5e9; color: #2e7d32; }
+
+.contenedor-conversacion { padding: 20px; max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.lista-mensajes { display: flex; flex-direction: column; gap: 8px; background: #fff; border-radius: 8px; padding: 16px; min-height: 300px; }
+.burbuja { padding: 8px 12px; border-radius: 10px; max-width: 75%; font-size: 14px; white-space: pre-wrap; }
+.burbuja-user { align-self: flex-start; background: #f0f0f0; }
+.burbuja-assistant { align-self: flex-end; background: #dcf8c6; }
+
+.barra-acciones { display: flex; gap: 8px; align-items: center; }
+.boton {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #2e7d32;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+.boton-secundario { background: #757575; }
+.form-mensaje { display: flex; gap: 8px; flex: 1; }
+.form-mensaje input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }

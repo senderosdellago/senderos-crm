@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ingresar — CRM</title>
+  <link rel="stylesheet" href="/css/estilos.css" />
+</head>
+<body class="pagina-login">
+  <form class="tarjeta-login" method="POST" action="/login">
+    <h1>CRM</h1>
+    <p class="subtitulo">Ingresa con tu cuenta del equipo</p>
+    <% if (error) { %>
+      <div class="mensaje-error"><%= error %></div>
+    <% } %>
+    <label>
+      Correo
+      <input type="email" name="email" required autofocus />
+    </label>
+    <label>
+      Contraseña
+      <input type="password" name="password" required />
+    </label>
+    <button type="submit">Ingresar</button>
+  </form>
+</body>
+</html>

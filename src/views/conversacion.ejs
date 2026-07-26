@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= telefono %> — <%= productoActual.nombre %></title>
+  <link rel="stylesheet" href="/css/estilos.css" />
+</head>
+<body>
+  <header class="encabezado">
+    <div>
+      <a href="/bandeja?producto=<%= productoActual.slug %>" class="boton-enlace">&larr; Bandeja</a>
+      <strong><%= telefono %></strong>
+      <span id="estado-conexion" class="punto-conexion"></span>
+    </div>
+    <div>
+      <select id="selector-etapa" data-producto="<%= productoActual.slug %>" data-telefono="<%= telefono %>">
+        <% etapas.forEach((e) => { %>
+          <option value="<%= e.id %>" <%= leadCrm.etapa_id === e.id ? "selected" : "" %>><%= e.nombre %></option>
+        <% }) %>
+      </select>
+    </div>
+  </header>
+
+  <main class="contenedor-conversacion">
+    <div id="lista-mensajes" class="lista-mensajes" data-producto="<%= productoActual.slug %>" data-telefono="<%= telefono %>">
+      <% (conversacion.historial || []).forEach((m) => { %>
+        <div class="burbuja burbuja-<%= m.role %>"><%= m.content %></div>
+      <% }) %>
+    </div>
+
+    <div class="barra-acciones">
+      <% if (conversacion.intervencion_humana) { %>
+        <button id="boton-devolver" class="boton boton-secundario">Devolver al bot</button>
+        <form id="form-mensaje" class="form-mensaje">
+          <input type="text" id="campo-mensaje" placeholder="Escribe un mensaje..." autocomplete="off" />
+          <button type="submit" class="boton">Enviar</button>
+        </form>
+      <% } else { %>
+        <button id="boton-intervenir" class="boton">Tomar control de esta conversación</button>
+      <% } %>
+    </div>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const PRODUCTO = "<%= productoActual.slug %>";
+    const TELEFONO = "<%= telefono %>";
+  </script>
+  <script src="/js/conversacion.js"></script>
+</body>
+</html>

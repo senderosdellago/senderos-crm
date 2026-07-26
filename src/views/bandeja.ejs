@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bandeja — <%= productoActual.nombre %></title>
+  <link rel="stylesheet" href="/css/estilos.css" />
+</head>
+<body>
+  <header class="encabezado">
+    <div>
+      <strong><%= productoActual.nombre %></strong>
+      <span class="punto-conexion" id="estado-conexion" title="Conexión en tiempo real"></span>
+    </div>
+    <div class="encabezado-usuario">
+      <span><%= usuario.nombre %></span>
+      <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>
+    </div>
+  </header>
+
+  <main class="contenedor-bandeja">
+    <table class="tabla-bandeja">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Teléfono</th>
+          <th>Clasificación</th>
+          <th>Etapa</th>
+          <th>Visita</th>
+          <th>Estado</th>
+          <th>Última actividad</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="cuerpo-bandeja">
+        <% conversaciones.forEach((c) => { %>
+          <tr data-telefono="<%= c.telefono %>">
+            <td><%= c.nombre || "(sin nombre)" %></td>
+            <td><%= c.telefono %></td>
+            <td><span class="etiqueta etiqueta-<%= c.clasificacion %>"><%= c.clasificacion %></span></td>
+            <td><%= c.etapa_nombre || "-" %></td>
+            <td><%= c.visita_agendada ? "Agendada" : "-" %></td>
+            <td>
+              <% if (c.intervencion_humana) { %>
+                <span class="etiqueta etiqueta-intervenida">Con asesor<%= c.intervenido_por ? ` (${c.intervenido_por})` : "" %></span>
+              <% } else { %>
+                <span class="etiqueta etiqueta-bot">Paola (bot)</span>
+              <% } %>
+            </td>
+            <td><%= new Date(c.actualizado_en).toLocaleString("es-CO", { timeZone: "America/Bogota" }) %></td>
+            <td><a href="/conversacion/<%= productoActual.slug %>/<%= c.telefono %>">Ver</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const PRODUCTO = "<%= productoActual.slug %>";
+  </script>
+  <script src="/js/bandeja.js"></script>
+</body>
+</html>
