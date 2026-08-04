@@ -51,6 +51,42 @@ export async function listarConversacionesProducto(slug, { limite = 200 } = {}) 
   return resultado.rows;
 }
 
+// Para el dashboard de triage: trae todo lo necesario para decidir a quién
+// atender primero, sin tener que abrir cada conversación una por una.
+export async function listarConversacionesParaTriage(slug, { limite = 300 } = {}) {
+  const pool = obtenerPool(slug);
+  const resultado = await pool.query(
+    `SELECT
+       telefono,
+       respuestas,
+       clasificacion,
+       quiere_visita,
+       tipo_visita,
+       visita_agendada,
+       fecha_visita_iso,
+       hora_visita_pendiente,
+       intervencion_humana,
+       intervenido_por,
+       gestion_humana_notificada,
+       motivo_gestion_humana,
+       media_urls_enviadas,
+       ultimo_mensaje_cliente_en,
+       no_contactar,
+       en_remarketing,
+       lead_dormido,
+       jsonb_array_length(historial) AS total_mensajes,
+       actualizado_en
+     FROM conversaciones
+     WHERE no_contactar = false
+     ORDER BY
+       (gestion_humana_notificada AND NOT intervencion_humana) DESC,
+       actualizado_en DESC
+     LIMIT $1`,
+    [limite]
+  );
+  return resultado.rows;
+}
+
 export async function obtenerConversacionProducto(slug, telefono) {
   const pool = obtenerPool(slug);
   const resultado = await pool.query(
