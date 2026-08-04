@@ -115,3 +115,53 @@ body {
   font-size: 14px;
 }
 select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
+
+.nav-principal { display: flex; gap: 4px; }
+.nav-principal a {
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: #555;
+  text-decoration: none;
+  font-size: 14px;
+}
+.nav-principal a.activo { background: #e8f5e9; color: #2e7d32; font-weight: 600; }
+.nav-principal a:hover:not(.activo) { background: #f5f5f5; }
+
+.contenedor-dashboard { padding: 20px; max-width: 960px; margin: 0 auto; }
+.saludo-dashboard { font-size: 16px; margin: 0 0 20px; color: #333; }
+
+.grid-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 28px; }
+.tarjeta-resumen { background: #fff; border-radius: 8px; padding: 16px; }
+.tarjeta-resumen-etiqueta { margin: 0; font-size: 13px; color: #666; }
+.tarjeta-resumen-numero { margin: 4px 0 0; font-size: 26px; font-weight: 700; color: #1c1e21; }
+.numero-urgente { color: #c0392b; }
+.numero-caliente { color: #d35400; }
+.numero-exito { color: #2e7d32; }
+
+.titulo-seccion { font-size: 16px; font-weight: 600; margin: 0 0 10px; }
+.titulo-urgente { color: #c0392b; }
+.titulo-caliente { color: #d35400; }
+.texto-discreto { color: #888; font-size: 13px; }
+
+.lista-leads { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+.tarjeta-lead {
+  background: #fff;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-left: 3px solid transparent;
+}
+.tarjeta-lead-intervencion { border-left-color: #c0392b; }
+.tarjeta-lead-caliente { border-left-color: #d35400; }
+.tarjeta-lead-info { flex: 1; min-width: 220px; }
+.tarjeta-lead-titulo { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.tarjeta-lead-nombre { font-weight: 600; font-size: 15px; }
+.tarjeta-lead-motivo { margin: 0 0 8px; font-size: 13px; color: #555; }
+.tarjeta-lead-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: #888; }
+.tarjeta-lead-acciones { display: flex; gap: 8px; flex-shrink: 0; }
+.tarjeta-lead-acciones .boton { padding: 8px 14px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; }
+.boton-tomar-caso { background: #c0392b; }
