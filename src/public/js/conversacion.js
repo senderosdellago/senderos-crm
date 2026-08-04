@@ -27,8 +27,31 @@ async function refrescarMensajes() {
 
 function pintarMensajes(historial) {
   const lista = document.getElementById("lista-mensajes");
+  let diaAnterior = null;
   lista.innerHTML = historial
-    .map((m) => `<div class="burbuja burbuja-${m.role}">${escaparHtml(m.content)}</div>`)
+    .map((m) => {
+      const fecha = m.timestamp ? new Date(m.timestamp) : null;
+      const diaActual = fecha
+        ? fecha.toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "long", year: "numeric" })
+        : null;
+      const horaTexto = fecha
+        ? fecha.toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "numeric", minute: "2-digit" })
+        : "hora no registrada";
+
+      let separador = "";
+      if (diaActual && diaActual !== diaAnterior) {
+        separador = `<div class="separador-dia"><span>${diaActual}</span></div>`;
+        diaAnterior = diaActual;
+      }
+
+      return `
+        ${separador}
+        <div class="burbuja burbuja-${m.role}">
+          <span class="burbuja-texto">${escaparHtml(m.content)}</span>
+          <span class="burbuja-hora">${horaTexto}</span>
+        </div>
+      `;
+    })
     .join("");
   lista.scrollTop = lista.scrollHeight;
 }
@@ -119,6 +142,60 @@ if (selectorEtapa) {
       if (!respuesta.ok) throw new Error("No se pudo cambiar la etapa");
     } catch (error) {
       alert(error.message);
+    }
+  });
+}
+
+const botonSugerir = document.getElementById("boton-sugerir");
+if (botonSugerir) {
+  botonSugerir.addEventListener("click", async () => {
+    const resultado = document.getElementById("resultado-sugerencia");
+    botonSugerir.disabled = true;
+    botonSugerir.textContent = "Pensando...";
+    resultado.hidden = true;
+
+    try {
+      const respuesta = await fetch("/acciones/sugerir-siguiente-paso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono: TELEFONO }),
+      });
+      const datos = await respuesta.json();
+      if (!respuesta.ok) throw new Error(datos.error || "No se pudo generar la sugerencia");
+
+      resultado.textContent = datos.sugerencia;
+      resultado.hidden = false;
+    } catch (error) {
+      console.error("Error obteniendo sugerencia:", error);
+      alert(error.message);
+    } finally {
+      botonSugerir.disabled = false;
+      botonSugerir.textContent = "Sugerir próximo paso (IA)";
+    }
+  });
+}
+
+const botonGuardarNotas = document.getElementById("boton-guardar-notas");
+if (botonGuardarNotas) {
+  botonGuardarNotas.addEventListener("click", async () => {
+    const campoNotas = document.getElementById("campo-notas");
+    const estadoNotas = document.getElementById("estado-notas");
+    botonGuardarNotas.disabled = true;
+
+    try {
+      const respuesta = await fetch("/acciones/notas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono: TELEFONO, notas: campoNotas.value }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo guardar la nota");
+      estadoNotas.textContent = "Guardado ✓";
+      setTimeout(() => (estadoNotas.textContent = ""), 2000);
+    } catch (error) {
+      console.error("Error guardando notas:", error);
+      estadoNotas.textContent = "No se pudo guardar";
+    } finally {
+      botonGuardarNotas.disabled = false;
     }
   });
 }
