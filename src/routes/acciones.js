@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { obtenerProducto } from "../config/productos.js";
-import { pool, registrarEvento, asegurarLeadCrm } from "../db/crm.js";
+import { pool, registrarEvento, asegurarLeadCrm, guardarNotas, guardarResultadoVisita } from "../db/crm.js";
 import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
 
 const router = Router();
@@ -109,6 +109,42 @@ router.post("/acciones/etapa", async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error("Error cambiando de etapa:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/acciones/notas", async (req, res) => {
+  try {
+    const { producto: slug, telefono, notas } = req.body;
+    if (!slug || !telefono) return res.status(400).json({ error: "Falta 'producto' o 'telefono'" });
+
+    await guardarNotas(slug, telefono, notas || null);
+    await registrarEvento(slug, telefono, "notas_actualizadas", { asesor: req.session.usuario.nombre });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error guardando notas:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// resultado esperado: 'asistio' | 'no_asistio' | 'reagendada'
+router.post("/acciones/visita-resultado", async (req, res) => {
+  try {
+    const { producto: slug, telefono, resultado } = req.body;
+    const validos = ["asistio", "no_asistio", "reagendada"];
+    if (!slug || !telefono || !validos.includes(resultado)) {
+      return res.status(400).json({ error: "Falta 'producto', 'telefono', o 'resultado' inválido" });
+    }
+
+    await guardarResultadoVisita(slug, telefono, resultado);
+    await registrarEvento(slug, telefono, "visita_resultado", {
+      asesor: req.session.usuario.nombre,
+      resultado,
+    });
+    emitirNovedad(req, slug, telefono);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error guardando resultado de visita:", error);
     res.status(500).json({ error: error.message });
   }
 });
