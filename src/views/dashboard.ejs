@@ -43,9 +43,42 @@
       </div>
     </section>
 
+    <section id="seccion-enfriandose">
+      <h2 class="titulo-seccion titulo-enfriandose">Se están enfriando</h2>
+      <p class="texto-discreto">Leads calientes o tibios que llevan varios días sin escribir y todavía no tienen visita agendada — vale la pena retomarlos antes de que se enfríen del todo.</p>
+      <div class="lista-leads" id="lista-enfriandose">
+        <%- include("parciales/leads-triage", { leads: leadsEnfriandose, tipo: "enfriandose", producto: productoActual.slug }) %>
+      </div>
+    </section>
+
+    <section id="seccion-visitas-proximas">
+      <h2 class="titulo-seccion">Próximas visitas</h2>
+      <div class="lista-visitas" id="lista-visitas-proximas">
+        <%- include("parciales/visitas-proximas", { visitas: visitasProximas, producto: productoActual.slug }) %>
+      </div>
+    </section>
+
+    <section id="seccion-visitas-confirmar">
+      <h2 class="titulo-seccion">Visitas para confirmar resultado</h2>
+      <p class="texto-discreto">Ya pasó la fecha — marca qué pasó para llevar el registro y saber si vale la pena reactivar el caso.</p>
+      <div class="lista-visitas" id="lista-visitas-confirmar">
+        <%- include("parciales/visitas-confirmar", { visitas: visitasPorConfirmar, producto: productoActual.slug }) %>
+      </div>
+    </section>
+
     <section id="seccion-seguimiento">
       <h2 class="titulo-seccion">En seguimiento automático (<%= resumen.enSeguimiento %>)</h2>
       <p class="texto-discreto">Paola sigue estas conversaciones sola por ahora — no requieren tu atención todavía.</p>
+    </section>
+
+    <section id="seccion-metricas">
+      <h2 class="titulo-seccion">Números generales</h2>
+      <div class="grid-metricas">
+        <div class="metrica"><span class="metrica-numero"><%= metricas.total %></span><span class="metrica-etiqueta">Leads totales</span></div>
+        <div class="metrica"><span class="metrica-numero"><%= metricas.pctCalientes %>%</span><span class="metrica-etiqueta">Son calientes</span></div>
+        <div class="metrica"><span class="metrica-numero"><%= metricas.pctQuierenVisita %>%</span><span class="metrica-etiqueta">Quieren visita</span></div>
+        <div class="metrica"><span class="metrica-numero"><%= metricas.pctCalientesQueAgendan %>%</span><span class="metrica-etiqueta">De los calientes ya agendaron</span></div>
+      </div>
     </section>
   </main>
 
