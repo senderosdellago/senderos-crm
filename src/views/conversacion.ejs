@@ -23,9 +23,35 @@
   </header>
 
   <main class="contenedor-conversacion">
+    <div class="panel-herramientas">
+      <div class="panel-asistente">
+        <button id="boton-sugerir" class="boton boton-secundario">Sugerir próximo paso (IA)</button>
+        <div id="resultado-sugerencia" class="resultado-sugerencia" hidden></div>
+      </div>
+      <div class="panel-notas">
+        <label for="campo-notas">Notas internas del asesor</label>
+        <textarea id="campo-notas" rows="2" placeholder="Ej: la llamé, no contestó, reintentar mañana en la tarde..."><%= leadCrm.notas || "" %></textarea>
+        <button id="boton-guardar-notas" class="boton boton-secundario">Guardar nota</button>
+        <span id="estado-notas" class="texto-discreto"></span>
+      </div>
+    </div>
+
     <div id="lista-mensajes" class="lista-mensajes" data-producto="<%= productoActual.slug %>" data-telefono="<%= telefono %>">
-      <% (conversacion.historial || []).forEach((m) => { %>
-        <div class="burbuja burbuja-<%= m.role %>"><%= m.content %></div>
+      <%
+        let diaAnterior = null;
+        (conversacion.historial || []).forEach((m) => {
+          const fecha = m.timestamp ? new Date(m.timestamp) : null;
+          const diaActual = fecha ? fecha.toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "long", year: "numeric" }) : null;
+          const mostrarSeparador = diaActual && diaActual !== diaAnterior;
+          if (mostrarSeparador) diaAnterior = diaActual;
+      %>
+        <% if (mostrarSeparador) { %>
+          <div class="separador-dia"><span><%= diaActual %></span></div>
+        <% } %>
+        <div class="burbuja burbuja-<%= m.role %>">
+          <span class="burbuja-texto"><%= m.content %></span>
+          <span class="burbuja-hora"><%= fecha ? fecha.toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "numeric", minute: "2-digit" }) : "hora no registrada" %></span>
+        </div>
       <% }) %>
     </div>
 
