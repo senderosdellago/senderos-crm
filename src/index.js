@@ -11,6 +11,7 @@ import { pool, asegurarEsquema } from "./db/crm.js";
 import { requiereLogin } from "./middleware/auth.js";
 import rutasAuth from "./routes/auth.js";
 import rutasBandeja from "./routes/bandeja.js";
+import rutasDashboard from "./routes/dashboard.js";
 import rutasAcciones from "./routes/acciones.js";
 import rutasWebhook from "./routes/webhook.js";
 
@@ -59,6 +60,7 @@ app.use(rutasWebhook);
 
 app.use(rutasAuth);
 app.use(requiereLogin, rutasBandeja);
+app.use(requiereLogin, rutasDashboard);
 app.use(requiereLogin, rutasAcciones);
 
 io.on("connection", (socket) => {
