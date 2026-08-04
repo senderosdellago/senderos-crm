@@ -1,0 +1,28 @@
+<% if (leads.length === 0) { %>
+  <p class="texto-discreto">No hay leads en esta categoría por ahora.</p>
+<% } %>
+<% leads.forEach((lead) => { %>
+  <div class="tarjeta-lead tarjeta-lead-<%= tipo %>" data-telefono="<%= lead.telefono %>">
+    <div class="tarjeta-lead-info">
+      <div class="tarjeta-lead-titulo">
+        <span class="tarjeta-lead-nombre"><%= lead.respuestas?.nombre || lead.telefono %></span>
+        <span class="etiqueta etiqueta-<%= lead.clasificacion %>"><%= lead.clasificacion %></span>
+      </div>
+      <% if (tipo === "intervencion" && lead.motivo_gestion_humana) { %>
+        <p class="tarjeta-lead-motivo">Paola no pudo avanzar: <%= lead.motivo_gestion_humana %></p>
+      <% } %>
+      <div class="tarjeta-lead-meta">
+        <% if (lead.respuestas?.uso) { %><span>Uso: <%= lead.respuestas.uso %></span><% } %>
+        <% if (lead.respuestas?.presupuesto) { %><span>Presupuesto: <%= lead.respuestas.presupuesto %></span><% } %>
+        <% if (lead.temasInteres.length > 0) { %><span>Pidió ver: <%= lead.temasInteres.join(", ") %></span><% } %>
+        <span><%= lead.tiempoTexto %></span>
+      </div>
+    </div>
+    <div class="tarjeta-lead-acciones">
+      <a class="boton boton-secundario" href="/conversacion/<%= producto %>/<%= lead.telefono %>">Ver conversación</a>
+      <% if (tipo === "intervencion") { %>
+        <button class="boton boton-tomar-caso" data-telefono="<%= lead.telefono %>">Tomar caso</button>
+      <% } %>
+    </div>
+  </div>
+<% }) %>
