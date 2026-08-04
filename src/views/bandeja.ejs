@@ -12,6 +12,10 @@
       <strong><%= productoActual.nombre %></strong>
       <span class="punto-conexion" id="estado-conexion" title="Conexión en tiempo real"></span>
     </div>
+    <nav class="nav-principal">
+      <a href="/dashboard?producto=<%= productoActual.slug %>">Dashboard</a>
+      <a href="/bandeja?producto=<%= productoActual.slug %>" class="activo">Bandeja</a>
+    </nav>
     <div class="encabezado-usuario">
       <span><%= usuario.nombre %></span>
       <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>

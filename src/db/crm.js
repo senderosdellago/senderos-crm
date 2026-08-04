@@ -46,10 +46,19 @@ export async function asegurarEsquema() {
       telefono TEXT NOT NULL,
       etapa_id INTEGER REFERENCES etapas(id) ON DELETE SET NULL,
       asesor_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+      notas TEXT,
+      visita_resultado TEXT,
+      visita_resultado_en TIMESTAMPTZ,
       creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
       actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
       UNIQUE(producto, telefono)
     );
+  `);
+  await pool.query(`
+    ALTER TABLE leads_crm
+      ADD COLUMN IF NOT EXISTS notas TEXT,
+      ADD COLUMN IF NOT EXISTS visita_resultado TEXT,
+      ADD COLUMN IF NOT EXISTS visita_resultado_en TIMESTAMPTZ;
   `);
 
   await pool.query(`
@@ -161,4 +170,23 @@ export async function listarLeadsCrm(producto) {
     [producto]
   );
   return resultado.rows;
+}
+
+export async function guardarNotas(producto, telefono, notas) {
+  await asegurarLeadCrm(producto, telefono);
+  await pool.query(
+    "UPDATE leads_crm SET notas = $1, actualizado_en = now() WHERE producto = $2 AND telefono = $3",
+    [notas, producto, telefono]
+  );
+}
+
+// resultado esperado: 'asistio' | 'no_asistio' | 'reagendada'
+export async function guardarResultadoVisita(producto, telefono, resultado) {
+  await asegurarLeadCrm(producto, telefono);
+  await pool.query(
+    `UPDATE leads_crm
+     SET visita_resultado = $1, visita_resultado_en = now(), actualizado_en = now()
+     WHERE producto = $2 AND telefono = $3`,
+    [resultado, producto, telefono]
+  );
 }
