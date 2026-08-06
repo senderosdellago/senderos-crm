@@ -6,11 +6,14 @@
 //
 // El rol es opcional, por defecto "asesor".
 
-import dotenv from "dotenv";
+// IMPORTANTE: "dotenv/config" tiene que ser el PRIMER import, antes que
+// crm.js — así el .env ya está cargado cuando crm.js crea la conexión a la
+// base de datos (Pool se crea apenas se importa el archivo, no cuando se usa).
+// Si esto queda después, DATABASE_URL todavía está vacía en ese momento y la
+// conexión cae al valor por defecto (localhost), fallando siempre en local.
+import "dotenv/config";
 import bcrypt from "bcrypt";
 import { pool, asegurarEsquema } from "../src/db/crm.js";
-
-dotenv.config();
 
 async function main() {
   const [, , nombre, email, password, rolArg] = process.argv;
