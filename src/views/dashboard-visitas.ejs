@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visitas — <%= productoActual.nombre %></title>
+  <link rel="stylesheet" href="/css/estilos.css" />
+</head>
+<body>
+  <header class="encabezado">
+    <div>
+      <strong><%= productoActual.nombre %></strong>
+    </div>
+    <nav class="nav-principal">
+      <a href="/dashboard?producto=<%= productoActual.slug %>" class="activo">Dashboard</a>
+      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
+    </nav>
+    <div class="encabezado-usuario">
+      <span><%= usuario.nombre %></span>
+      <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>
+    </div>
+  </header>
+
+  <main class="contenedor-dashboard">
+    <a class="enlace-volver" href="/dashboard?producto=<%= productoActual.slug %>">← Volver al dashboard</a>
+    <h1 class="titulo-pagina">Visitas agendadas</h1>
+
+    <h2 class="titulo-seccion">Próximas (<%= visitasProximas.length %>)</h2>
+    <table class="tabla-calendario">
+      <thead>
+        <tr><th>Cliente</th><th>Fecha</th><th>Hora</th><th>Asesor</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% if (visitasProximas.length === 0) { %>
+          <tr><td colspan="5" class="texto-discreto">No hay visitas próximas.</td></tr>
+        <% } %>
+        <% visitasProximas.forEach((v) => { %>
+          <tr data-telefono="<%= v.telefono %>">
+            <td><%= v.nombre || v.telefono %></td>
+            <td><%= v.fecha_visita_iso %></td>
+            <td><%= v.hora_visita_pendiente || "—" %></td>
+            <td><%= v.asesor_nombre || "Sin asignar" %></td>
+            <td class="celda-acciones">
+              <a class="boton boton-secundario" href="/conversacion/<%= productoActual.slug %>/<%= v.telefono %>">Ver</a>
+              <button class="boton boton-secundario boton-abrir-reagendar" data-telefono="<%= v.telefono %>">Reagendar</button>
+            </td>
+          </tr>
+          <tr class="fila-reagendar oculta" data-telefono-form="<%= v.telefono %>">
+            <td colspan="5">
+              <form class="form-reagendar" data-telefono="<%= v.telefono %>">
+                <label>Fecha <input type="date" name="fechaISO" required /></label>
+                <label>Hora <input type="text" name="hora" placeholder="ej. 10:00 a.m." required /></label>
+                <button type="submit" class="boton">Guardar</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <h2 class="titulo-seccion" style="margin-top:28px">Para confirmar resultado (<%= visitasPorConfirmar.length %>)</h2>
+    <table class="tabla-calendario">
+      <thead>
+        <tr><th>Cliente</th><th>Fecha</th><th>Hora</th><th>Asesor</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% if (visitasPorConfirmar.length === 0) { %>
+          <tr><td colspan="5" class="texto-discreto">No hay visitas pendientes de confirmar.</td></tr>
+        <% } %>
+        <% visitasPorConfirmar.forEach((v) => { %>
+          <tr data-telefono="<%= v.telefono %>">
+            <td><%= v.nombre || v.telefono %></td>
+            <td><%= v.fecha_visita_iso %></td>
+            <td><%= v.hora_visita_pendiente || "—" %></td>
+            <td><%= v.asesor_nombre || "Sin asignar" %></td>
+            <td class="celda-acciones">
+              <button class="boton boton-visita-resultado" data-telefono="<%= v.telefono %>" data-resultado="asistio">Sí asistió</button>
+              <button class="boton boton-secundario boton-visita-resultado" data-telefono="<%= v.telefono %>" data-resultado="no_asistio">No asistió</button>
+              <button class="boton boton-secundario boton-visita-resultado" data-telefono="<%= v.telefono %>" data-resultado="reagendada">Se reagendó</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    const PRODUCTO = "<%= productoActual.slug %>";
+  </script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

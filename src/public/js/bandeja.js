@@ -37,6 +37,7 @@ function actualizarTabla(conversaciones) {
           <td>${c.telefono}</td>
           <td><span class="etiqueta etiqueta-${c.clasificacion}">${c.clasificacion}</span></td>
           <td>${c.etapa_nombre || "-"}</td>
+          <td>${c.asesor_nombre || "-"}</td>
           <td>${c.visita_agendada ? "Agendada" : "-"}</td>
           <td>${estado}</td>
           <td>${fecha}</td>

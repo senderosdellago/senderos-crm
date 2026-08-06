@@ -18,6 +18,7 @@
         <% if (lead.respuestas?.uso) { %><span>Uso: <%= lead.respuestas.uso %></span><% } %>
         <% if (lead.respuestas?.presupuesto) { %><span>Presupuesto: <%= lead.respuestas.presupuesto %></span><% } %>
         <% if (lead.temasInteres.length > 0) { %><span>Pidió ver: <%= lead.temasInteres.join(", ") %></span><% } %>
+        <span>Asesor: <%= lead.asesor_nombre || "sin asignar" %></span>
         <span><%= lead.tiempoTexto %></span>
       </div>
     </div>

@@ -6,8 +6,10 @@ import {
   obtenerMetricasConversion,
 } from "../db/productoDb.js";
 import { listarLeadsCrm } from "../db/crm.js";
+import { requiereLogin } from "../middleware/auth.js";
 
 const router = Router();
+router.use(requiereLogin);
 
 // A partir de cuántos días sin escribir un lead caliente/tibio (sin visita
 // agendada todavía) se considera que se está enfriando. Ajustable si con el
@@ -24,6 +26,33 @@ const ETIQUETAS_TEMA = {
   bosque: "el bosque",
   montana: "la cordillera",
   tipologias: "tipologías",
+};
+
+// Metadatos de cada página de lista — título, descripción, y color de acento
+// — para que la ruta genérica /dashboard/lista/:tipo sepa cómo renderizarse
+// sin repetir 4 rutas casi idénticas.
+const TIPOS_LISTA = {
+  intervencion: {
+    titulo: "Requieren intervención",
+    descripcion: "Paola detectó algo que necesita un asesor humano.",
+    colorClase: "titulo-urgente",
+  },
+  calientes: {
+    titulo: "Calientes sin visita agendada",
+    descripcion: "Clasificados como caliente, sin visita todavía.",
+    colorClase: "titulo-caliente",
+  },
+  enfriandose: {
+    titulo: "Se están enfriando",
+    descripcion:
+      "Leads calientes o tibios que llevan varios días sin escribir y todavía no tienen visita agendada.",
+    colorClase: "titulo-enfriandose",
+  },
+  seguimiento: {
+    titulo: "En seguimiento automático",
+    descripcion: "Paola sigue estas conversaciones sola por ahora.",
+    colorClase: "",
+  },
 };
 
 function temasDeInteres(mediaUrlsEnviadas) {
@@ -58,6 +87,14 @@ function diasDesde(fecha) {
 // sin errores de husos horarios.
 function hoyISOColombia() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" }); // en-CA da YYYY-MM-DD
+}
+
+// Un asesor (rol != admin) solo ve lo que el admin le asignó. Un admin ve
+// todo. Este filtro se aplica ANTES de categorizar, así que se respeta en
+// cada página sin tener que repetirlo.
+function filtrarPorAsesor(items, usuario) {
+  if (usuario.rol === "admin") return items;
+  return items.filter((item) => item.asesor_id === usuario.id);
 }
 
 // Clasifica cada conversación en una de cuatro categorías de prioridad para
@@ -103,22 +140,30 @@ function categorizar(conversaciones) {
 
 // Separa las visitas agendadas en "próximas" (hoy en adelante) y "para
 // confirmar resultado" (la fecha ya pasó y todavía no se registró qué pasó
-// en el overlay del CRM). Cruza con leads_crm para saber el resultado.
-function organizarVisitas(visitas, leadsCrm) {
+// en el overlay del CRM). Cruza con leads_crm para saber el resultado y el
+// asesor a cargo.
+function organizarVisitas(visitas, mapaCrm, usuario) {
   const hoy = hoyISOColombia();
-  const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
+
+  const conAsesor = visitas.map((v) => {
+    const overlay = mapaCrm.get(v.telefono);
+    return {
+      ...v,
+      visita_resultado: overlay?.visita_resultado || null,
+      asesor_id: overlay?.asesor_id || null,
+      asesor_nombre: overlay?.asesor_nombre || null,
+    };
+  });
+  const filtradas = filtrarPorAsesor(conAsesor, usuario);
 
   const proximas = [];
   const porConfirmar = [];
 
-  for (const v of visitas) {
-    const overlay = mapaCrm.get(v.telefono);
-    const enriquecida = { ...v, visita_resultado: overlay?.visita_resultado || null };
-
+  for (const v of filtradas) {
     if (v.fecha_visita_iso >= hoy) {
-      proximas.push(enriquecida);
-    } else if (!overlay?.visita_resultado) {
-      porConfirmar.push(enriquecida);
+      proximas.push(v);
+    } else if (!v.visita_resultado) {
+      porConfirmar.push(v);
     }
   }
 
@@ -140,7 +185,11 @@ function calcularMetricas(m) {
   };
 }
 
-async function construirDatosDashboard(slug) {
+// Trae y arma TODO lo que hace falta para cualquiera de las páginas del
+// dashboard, ya filtrado según el rol de `usuario`. Las páginas individuales
+// simplemente toman de acá lo que necesitan — así el filtro por asesor se
+// aplica en un solo lugar, no en cada ruta por separado.
+async function construirDatosDashboard(slug, usuario) {
   const [conversaciones, leadsCrm, visitas, metricasCrudas] = await Promise.all([
     listarConversacionesParaTriage(slug),
     listarLeadsCrm(slug),
@@ -151,12 +200,16 @@ async function construirDatosDashboard(slug) {
   const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
   const conAsesor = conversaciones.map((c) => ({
     ...c,
+    asesor_id: mapaCrm.get(c.telefono)?.asesor_id || null,
     asesor_nombre: mapaCrm.get(c.telefono)?.asesor_nombre || null,
   }));
+  const conversacionesFiltradas = filtrarPorAsesor(conAsesor, usuario);
 
   const { requierenIntervencion, calientesSinAgendar, leadsEnfriandose, enSeguimiento } =
-    categorizar(conAsesor);
-  const { proximas, porConfirmar } = organizarVisitas(visitas, leadsCrm);
+    categorizar(conversacionesFiltradas);
+  const { proximas, porConfirmar } = organizarVisitas(visitas, mapaCrm, usuario);
+  // Las métricas generales (para el panel de números) siempre son del
+  // producto completo, sin filtrar por asesor — es información gerencial.
   const metricas = calcularMetricas(metricasCrudas);
 
   return {
@@ -172,7 +225,7 @@ async function construirDatosDashboard(slug) {
       calientesSinAgendar: calientesSinAgendar.length,
       leadsEnfriandose: leadsEnfriandose.length,
       enSeguimiento: enSeguimiento.length,
-      visitasAgendadas: metricas.visitasAgendadas,
+      visitasAgendadas: proximas.length + porConfirmar.length,
     },
   };
 }
@@ -183,13 +236,14 @@ router.get("/dashboard", async (req, res) => {
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
-    const datos = await construirDatosDashboard(slug);
+    const datos = await construirDatosDashboard(slug, req.session.usuario);
 
     res.render("dashboard", {
       productos,
       productoActual: producto,
       usuario: req.session.usuario,
-      ...datos,
+      resumen: datos.resumen,
+      metricas: datos.metricas,
     });
   } catch (error) {
     console.error("Error cargando dashboard:", error);
@@ -197,15 +251,78 @@ router.get("/dashboard", async (req, res) => {
   }
 });
 
-// Versión JSON (la usa el navegador para refrescar sin recargar la página)
+// Versión JSON del resumen (la usa el navegador para refrescar los números
+// de las tarjetas sin recargar la página completa).
 router.get("/api/dashboard", async (req, res) => {
   try {
     const slug = req.query.producto || "senderos";
-    const datos = await construirDatosDashboard(slug);
-    res.json(datos);
+    const datos = await construirDatosDashboard(slug, req.session.usuario);
+    res.json({ resumen: datos.resumen, metricas: datos.metricas });
   } catch (error) {
     console.error("Error en /api/dashboard:", error);
     res.status(500).json({ error: "Error cargando el dashboard" });
+  }
+});
+
+// Página de calendario de visitas — próximas + por confirmar, con cliente,
+// fecha, hora y asesor a cargo. Aplica el mismo filtro por rol.
+router.get("/dashboard/visitas", async (req, res) => {
+  try {
+    const slug = req.query.producto || "senderos";
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).send("Producto no encontrado");
+
+    const [leadsCrm, visitas] = await Promise.all([
+      listarLeadsCrm(slug),
+      listarVisitasAgendadas(slug),
+    ]);
+    const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
+    const { proximas, porConfirmar } = organizarVisitas(visitas, mapaCrm, req.session.usuario);
+
+    res.render("dashboard-visitas", {
+      productos,
+      productoActual: producto,
+      usuario: req.session.usuario,
+      visitasProximas: proximas,
+      visitasPorConfirmar: porConfirmar,
+    });
+  } catch (error) {
+    console.error("Error cargando visitas:", error);
+    res.status(500).send("Error cargando las visitas");
+  }
+});
+
+// Página de lista genérica para las otras 4 categorías — /dashboard/lista/intervencion,
+// /dashboard/lista/calientes, /dashboard/lista/enfriandose, /dashboard/lista/seguimiento.
+router.get("/dashboard/lista/:tipo", async (req, res) => {
+  try {
+    const slug = req.query.producto || "senderos";
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).send("Producto no encontrado");
+
+    const meta = TIPOS_LISTA[req.params.tipo];
+    if (!meta) return res.status(404).send("Categoría no encontrada");
+
+    const datos = await construirDatosDashboard(slug, req.session.usuario);
+    const mapaListas = {
+      intervencion: { leads: datos.requierenIntervencion, tipoTarjeta: "intervencion" },
+      calientes: { leads: datos.calientesSinAgendar, tipoTarjeta: "caliente" },
+      enfriandose: { leads: datos.leadsEnfriandose, tipoTarjeta: "enfriandose" },
+      seguimiento: { leads: datos.enSeguimiento, tipoTarjeta: "seguimiento" },
+    };
+    const { leads, tipoTarjeta } = mapaListas[req.params.tipo];
+
+    res.render("dashboard-lista", {
+      productos,
+      productoActual: producto,
+      usuario: req.session.usuario,
+      meta,
+      leads,
+      tipoTarjeta,
+    });
+  } catch (error) {
+    console.error("Error cargando lista:", error);
+    res.status(500).send("Error cargando la lista");
   }
 });
 

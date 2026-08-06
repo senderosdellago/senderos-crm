@@ -180,6 +180,25 @@ export async function guardarNotas(producto, telefono, notas) {
   );
 }
 
+// Todos los usuarios activos, para el selector de "asignar a" — incluye
+// admins también (Santiago pidió poder asignarse leads a sí mismo).
+export async function listarUsuariosActivos() {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    "SELECT id, nombre, email, rol FROM usuarios WHERE activo = true ORDER BY nombre ASC"
+  );
+  return resultado.rows;
+}
+
+// asesorId puede ser null para "sin asignar" (desasignar).
+export async function asignarAsesor(producto, telefono, asesorId) {
+  await asegurarLeadCrm(producto, telefono);
+  await pool.query(
+    "UPDATE leads_crm SET asesor_id = $1, actualizado_en = now() WHERE producto = $2 AND telefono = $3",
+    [asesorId || null, producto, telefono]
+  );
+}
+
 // resultado esperado: 'asistio' | 'no_asistio' | 'reagendada'
 export async function guardarResultadoVisita(producto, telefono, resultado) {
   await asegurarLeadCrm(producto, telefono);

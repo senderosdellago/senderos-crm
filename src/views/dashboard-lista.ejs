@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= meta.titulo %> — <%= productoActual.nombre %></title>
+  <link rel="stylesheet" href="/css/estilos.css" />
+</head>
+<body>
+  <header class="encabezado">
+    <div>
+      <strong><%= productoActual.nombre %></strong>
+    </div>
+    <nav class="nav-principal">
+      <a href="/dashboard?producto=<%= productoActual.slug %>" class="activo">Dashboard</a>
+      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
+    </nav>
+    <div class="encabezado-usuario">
+      <span><%= usuario.nombre %></span>
+      <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>
+    </div>
+  </header>
+
+  <main class="contenedor-dashboard">
+    <a class="enlace-volver" href="/dashboard?producto=<%= productoActual.slug %>">← Volver al dashboard</a>
+    <h1 class="titulo-pagina <%= meta.colorClase %>"><%= meta.titulo %> (<%= leads.length %>)</h1>
+    <p class="texto-discreto"><%= meta.descripcion %></p>
+
+    <div class="lista-leads">
+      <%- include("parciales/leads-triage", { leads, tipo: tipoTarjeta, producto: productoActual.slug }) %>
+    </div>
+  </main>
+
+  <script>
+    const PRODUCTO = "<%= productoActual.slug %>";
+  </script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

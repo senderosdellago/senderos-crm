@@ -146,6 +146,27 @@ if (selectorEtapa) {
   });
 }
 
+const selectorAsesor = document.getElementById("selector-asesor");
+if (selectorAsesor) {
+  selectorAsesor.addEventListener("change", async () => {
+    try {
+      const respuesta = await fetch("/acciones/asignar-asesor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          producto: PRODUCTO,
+          telefono: TELEFONO,
+          asesorId: selectorAsesor.value ? Number(selectorAsesor.value) : null,
+        }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo asignar el asesor");
+      location.reload();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+
 const botonSugerir = document.getElementById("boton-sugerir");
 if (botonSugerir) {
   botonSugerir.addEventListener("click", async () => {

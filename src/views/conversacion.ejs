@@ -14,6 +14,14 @@
       <span id="estado-conexion" class="punto-conexion"></span>
     </div>
     <div>
+      <% if (usuario.rol === "admin") { %>
+        <select id="selector-asesor" data-producto="<%= productoActual.slug %>" data-telefono="<%= telefono %>">
+          <option value="">Sin asignar</option>
+          <% asesores.forEach((a) => { %>
+            <option value="<%= a.id %>" <%= leadCrm.asesor_id === a.id ? "selected" : "" %>><%= a.nombre %></option>
+          <% }) %>
+        </select>
+      <% } %>
       <select id="selector-etapa" data-producto="<%= productoActual.slug %>" data-telefono="<%= telefono %>">
         <% etapas.forEach((e) => { %>
           <option value="<%= e.id %>" <%= leadCrm.etapa_id === e.id ? "selected" : "" %>><%= e.nombre %></option>
@@ -23,6 +31,16 @@
   </header>
 
   <main class="contenedor-conversacion">
+    <div class="panel-resumen">
+      <div><span class="resumen-etiqueta">Nombre</span><span><%= conversacion.respuestas?.nombre || "No capturado" %></span></div>
+      <div><span class="resumen-etiqueta">Clasificación</span><span class="etiqueta etiqueta-<%= conversacion.clasificacion %>"><%= conversacion.clasificacion %></span></div>
+      <div><span class="resumen-etiqueta">Uso</span><span><%= conversacion.respuestas?.uso || "No especificado" %></span></div>
+      <div><span class="resumen-etiqueta">Presupuesto</span><span><%= conversacion.respuestas?.presupuesto || "No especificado" %></span></div>
+      <div><span class="resumen-etiqueta">Tiempo de decisión</span><span><%= conversacion.respuestas?.tiempo || "No especificado" %></span></div>
+      <div><span class="resumen-etiqueta">Visita</span><span><%= conversacion.visita_agendada ? `Agendada — ${conversacion.fecha_visita_iso} ${conversacion.hora_visita_pendiente || ""}` : "No agendada" %></span></div>
+      <div><span class="resumen-etiqueta">Asesor a cargo</span><span><%= leadCrm.asesor_id ? (asesores.find((a) => a.id === leadCrm.asesor_id)?.nombre || "—") : "Sin asignar" %></span></div>
+    </div>
+
     <div class="panel-herramientas">
       <div class="panel-asistente">
         <button id="boton-sugerir" class="boton boton-secundario">Sugerir próximo paso (IA)</button>

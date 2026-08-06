@@ -17,62 +17,24 @@
       <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
     </nav>
     <div class="encabezado-usuario">
-      <span><%= usuario.nombre %></span>
+      <span><%= usuario.nombre %> <% if (usuario.rol === "admin") { %>(admin)<% } %></span>
       <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>
     </div>
   </header>
 
   <main class="contenedor-dashboard">
-    <p class="saludo-dashboard">Hola, <%= usuario.nombre.split(" ")[0] %> — estos son los leads que necesitan tu atención hoy.</p>
+    <p class="saludo-dashboard">
+      Hola, <%= usuario.nombre.split(" ")[0] %> —
+      <%= usuario.rol === "admin" ? "esto es lo que está pasando con todos los leads." : "esto es lo que tienes asignado hoy." %>
+    </p>
 
     <div class="grid-resumen" id="grid-resumen">
-      <%- include("parciales/tarjetas-resumen", { resumen }) %>
+      <%- include("parciales/tarjetas-resumen", { resumen, producto: productoActual.slug }) %>
     </div>
-
-    <section id="seccion-intervencion">
-      <h2 class="titulo-seccion titulo-urgente">Requieren intervención ahora</h2>
-      <div class="lista-leads" id="lista-intervencion">
-        <%- include("parciales/leads-triage", { leads: requierenIntervencion, tipo: "intervencion", producto: productoActual.slug }) %>
-      </div>
-    </section>
-
-    <section id="seccion-calientes">
-      <h2 class="titulo-seccion titulo-caliente">Calientes sin visita agendada</h2>
-      <div class="lista-leads" id="lista-calientes">
-        <%- include("parciales/leads-triage", { leads: calientesSinAgendar, tipo: "caliente", producto: productoActual.slug }) %>
-      </div>
-    </section>
-
-    <section id="seccion-enfriandose">
-      <h2 class="titulo-seccion titulo-enfriandose">Se están enfriando</h2>
-      <p class="texto-discreto">Leads calientes o tibios que llevan varios días sin escribir y todavía no tienen visita agendada — vale la pena retomarlos antes de que se enfríen del todo.</p>
-      <div class="lista-leads" id="lista-enfriandose">
-        <%- include("parciales/leads-triage", { leads: leadsEnfriandose, tipo: "enfriandose", producto: productoActual.slug }) %>
-      </div>
-    </section>
-
-    <section id="seccion-visitas-proximas">
-      <h2 class="titulo-seccion">Próximas visitas</h2>
-      <div class="lista-visitas" id="lista-visitas-proximas">
-        <%- include("parciales/visitas-proximas", { visitas: visitasProximas, producto: productoActual.slug }) %>
-      </div>
-    </section>
-
-    <section id="seccion-visitas-confirmar">
-      <h2 class="titulo-seccion">Visitas para confirmar resultado</h2>
-      <p class="texto-discreto">Ya pasó la fecha — marca qué pasó para llevar el registro y saber si vale la pena reactivar el caso.</p>
-      <div class="lista-visitas" id="lista-visitas-confirmar">
-        <%- include("parciales/visitas-confirmar", { visitas: visitasPorConfirmar, producto: productoActual.slug }) %>
-      </div>
-    </section>
-
-    <section id="seccion-seguimiento">
-      <h2 class="titulo-seccion">En seguimiento automático (<%= resumen.enSeguimiento %>)</h2>
-      <p class="texto-discreto">Paola sigue estas conversaciones sola por ahora — no requieren tu atención todavía.</p>
-    </section>
 
     <section id="seccion-metricas">
       <h2 class="titulo-seccion">Números generales</h2>
+      <p class="texto-discreto">Estos números son del producto completo, no filtrados por vendedor.</p>
       <div class="grid-metricas">
         <div class="metrica"><span class="metrica-numero"><%= metricas.total %></span><span class="metrica-etiqueta">Leads totales</span></div>
         <div class="metrica"><span class="metrica-numero"><%= metricas.pctCalientes %>%</span><span class="metrica-etiqueta">Son calientes</span></div>

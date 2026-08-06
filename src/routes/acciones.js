@@ -1,6 +1,13 @@
 import { Router } from "express";
 import { obtenerProducto } from "../config/productos.js";
-import { pool, registrarEvento, asegurarLeadCrm, guardarNotas, guardarResultadoVisita } from "../db/crm.js";
+import {
+  pool,
+  registrarEvento,
+  asegurarLeadCrm,
+  guardarNotas,
+  guardarResultadoVisita,
+  asignarAsesor,
+} from "../db/crm.js";
 import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
 
 const router = Router();
@@ -145,6 +152,50 @@ router.post("/acciones/visita-resultado", async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error("Error guardando resultado de visita:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// SOLO admin — así un vendedor nunca puede reasignarse leads de otro por su
+// cuenta. asesorId puede venir null/vacío para desasignar.
+router.post("/acciones/asignar-asesor", requiereAdmin, async (req, res) => {
+  try {
+    const { producto: slug, telefono, asesorId } = req.body;
+    if (!slug || !telefono) return res.status(400).json({ error: "Falta 'producto' o 'telefono'" });
+
+    await asignarAsesor(slug, telefono, asesorId || null);
+    await registrarEvento(slug, telefono, "asesor_asignado", {
+      por: req.session.usuario.nombre,
+      asesorId: asesorId || null,
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error asignando asesor:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Registra o reagenda una visita manualmente. Cualquier usuario logueado
+// puede usarlo (un asesor debe poder reagendar SU propia visita si el
+// cliente no pudo asistir) — la restricción de "solo ve sus leads" ya la
+// aplica la ruta del dashboard/bandeja antes de que esto sea alcanzable.
+router.post("/acciones/reagendar-visita", async (req, res) => {
+  try {
+    const { producto: slug, telefono, fechaISO, hora, tipoVisita } = req.body;
+    if (!slug || !telefono || !fechaISO || !hora) {
+      return res.status(400).json({ error: "Falta 'producto', 'telefono', 'fechaISO', o 'hora'" });
+    }
+
+    await llamarBot(slug, "/interno/reagendar-visita", { telefono, fechaISO, hora, tipoVisita });
+    await registrarEvento(slug, telefono, "visita_reagendada", {
+      asesor: req.session.usuario.nombre,
+      fechaISO,
+      hora,
+    });
+    emitirNovedad(req, slug, telefono);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error reagendando visita:", error);
     res.status(500).json({ error: error.message });
   }
 });

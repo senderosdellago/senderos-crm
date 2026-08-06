@@ -149,6 +149,34 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
 
 .grid-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 28px; }
 .tarjeta-resumen { background: #fff; border-radius: 8px; padding: 16px; }
+.tarjeta-resumen-link { text-decoration: none; color: inherit; display: block; transition: transform 0.1s; }
+.tarjeta-resumen-link:hover { transform: translateY(-2px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+.enlace-volver { display: inline-block; margin-bottom: 12px; color: #2e7d32; text-decoration: none; font-size: 14px; }
+.enlace-volver:hover { text-decoration: underline; }
+.titulo-pagina { font-size: 20px; margin: 0 0 4px; }
+
+.panel-resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.panel-resumen > div { display: flex; flex-direction: column; gap: 2px; }
+.resumen-etiqueta { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
+
+.tabla-calendario { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.tabla-calendario th, .tabla-calendario td { padding: 10px 14px; text-align: left; font-size: 14px; border-bottom: 1px solid #f0f0f0; }
+.tabla-calendario th { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
+.celda-acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+.celda-acciones .boton { padding: 6px 10px; font-size: 12px; text-decoration: none; }
+
+.fila-reagendar.oculta { display: none; }
+.form-reagendar { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; padding: 8px 0; }
+.form-reagendar label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #666; }
+.form-reagendar input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
 .tarjeta-resumen-etiqueta { margin: 0; font-size: 13px; color: #666; }
 .tarjeta-resumen-numero { margin: 4px 0 0; font-size: 26px; font-weight: 700; color: #1c1e21; }
 .numero-urgente { color: #c0392b; }
