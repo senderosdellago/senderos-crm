@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Equipo — <%= productoActual.nombre %></title>
+  <link rel="stylesheet" href="/css/estilos.css" />
+</head>
+<body>
+  <header class="encabezado">
+    <div><strong><%= productoActual.nombre %></strong></div>
+    <nav class="nav-principal">
+      <a href="/dashboard?producto=<%= productoActual.slug %>" class="activo">Dashboard</a>
+      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
+    </nav>
+    <div class="encabezado-usuario">
+      <span><%= usuario.nombre %></span>
+      <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>
+    </div>
+  </header>
+
+  <main class="contenedor-dashboard">
+    <a class="enlace-volver" href="/dashboard?producto=<%= productoActual.slug %>">← Volver al dashboard</a>
+    <h1 class="titulo-pagina">Equipo — metas mensuales</h1>
+    <p class="texto-discreto">La meta se usa para la barra de progreso de "Cierres Esperados" en el dashboard de cada vendedor.</p>
+
+    <table class="tabla-calendario">
+      <thead>
+        <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Meta mensual (COP)</th></tr>
+      </thead>
+      <tbody>
+        <% usuarios.forEach((u) => { %>
+          <tr>
+            <td><%= u.nombre %></td>
+            <td><%= u.email %></td>
+            <td><%= u.rol %></td>
+            <td>
+              <input type="text" class="campo-meta-mensual" data-usuario-id="<%= u.id %>" value="<%= u.meta_mensual || "" %>" placeholder="$ —" />
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    const PRODUCTO = "<%= productoActual.slug %>";
+  </script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

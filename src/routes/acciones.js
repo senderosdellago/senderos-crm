@@ -10,6 +10,7 @@ import {
   actualizarCampoOportunidad,
   crearTarea,
   completarTarea,
+  guardarMetaMensual,
 } from "../db/crm.js";
 import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
 
@@ -233,6 +234,50 @@ router.post("/acciones/editar-campo", async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error("Error editando campo:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// SOLO admin puede fijar la meta mensual de un vendedor.
+router.post("/acciones/meta-mensual", requiereAdmin, async (req, res) => {
+  try {
+    const { usuarioId, monto } = req.body;
+    if (!usuarioId) return res.status(400).json({ error: "Falta 'usuarioId'" });
+
+    await guardarMetaMensual(usuarioId, monto === "" || monto == null ? null : Number(monto));
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error guardando meta mensual:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Crea un lead desde cero (alguien que llegó sin pasar por WhatsApp todavía).
+// Si lo crea un asesor, queda asignado automáticamente a él mismo. Si lo
+// crea un admin, queda sin asignar — lo reparte manualmente después.
+router.post("/acciones/crear-lead-manual", async (req, res) => {
+  const { producto: slug, telefono, nombre, uso, presupuesto, tiempo } = req.body;
+  if (!slug || !telefono || !nombre) {
+    return res.status(400).json({ error: "Falta 'producto', 'telefono', o 'nombre'" });
+  }
+
+  try {
+    await llamarBot(slug, "/interno/crear-lead-manual", { telefono, nombre, uso, presupuesto, tiempo });
+  } catch (errorBot) {
+    if (errorBot.message.includes("409")) {
+      return res.status(409).json({ error: "Ya existe un lead con ese número de teléfono" });
+    }
+    console.error("Error creando lead manual (bot):", errorBot);
+    return res.status(502).json({ error: "No se pudo crear el lead en el bot. Intenta de nuevo." });
+  }
+
+  try {
+    const esAdmin = req.session.usuario.rol === "admin";
+    await asignarAsesor(slug, telefono, esAdmin ? null : req.session.usuario.id);
+    await registrarEvento(slug, telefono, "lead_creado_manual", { por: req.session.usuario.nombre });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error asignando el lead recién creado:", error);
     res.status(500).json({ error: error.message });
   }
 });

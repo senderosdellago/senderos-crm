@@ -160,9 +160,25 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
 .saludo-dashboard { font-size: 16px; margin: 0 0 20px; color: #333; }
 
 .grid-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 28px; }
-.tarjeta-resumen { background: #fff; border-radius: 8px; padding: 16px; }
-.tarjeta-resumen-link { text-decoration: none; color: inherit; display: block; transition: transform 0.1s; }
-.tarjeta-resumen-link:hover { transform: translateY(-2px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.grid-metricas-vendedor { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.tarjeta-metrica { background: #fff; border-radius: 8px; padding: 16px; display: block; text-decoration: none; color: inherit; }
+.tarjeta-metrica.tarjeta-resumen-link:hover { transform: translateY(-2px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.metrica-grande { font-size: 28px; font-weight: 700; color: #1c1e21; margin: 4px 0; }
+.barra-progreso { background: #eee; border-radius: 999px; height: 6px; overflow: hidden; margin: 6px 0 2px; }
+.barra-progreso-relleno { background: #2e7d32; height: 100%; }
+
+.grid-tres-columnas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.columna-dashboard { background: #fff; border-radius: 8px; padding: 16px; }
+.lista-actividades, .lista-oportunidades-preview { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 8px; }
+.lista-actividades li, .lista-oportunidades-preview li { display: flex; flex-direction: column; gap: 2px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
+.actividad-concepto { font-weight: 600; }
+.etapa-preview { font-size: 12px; color: #1565c0; }
+
+.boton-accion-rapida { display: block; width: 100%; margin-bottom: 8px; text-align: left; }
+.form-accion-rapida { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; padding: 10px; background: #f9f9f9; border-radius: 6px; }
+.form-accion-rapida input, .form-accion-rapida select {
+  padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;
+}
 
 .enlace-volver { display: inline-block; margin-bottom: 12px; color: #2e7d32; text-decoration: none; font-size: 14px; }
 .enlace-volver:hover { text-decoration: underline; }

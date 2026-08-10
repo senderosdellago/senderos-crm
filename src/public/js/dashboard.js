@@ -67,6 +67,77 @@ function actualizarResumen(resumen) {
   `;
 }
 
+// ============ Acciones rápidas: Nuevo Lead (página /dashboard) ============
+const botonAbrirNuevoLead = document.getElementById("boton-abrir-nuevo-lead");
+const formNuevoLead = document.getElementById("form-nuevo-lead");
+if (botonAbrirNuevoLead && formNuevoLead) {
+  botonAbrirNuevoLead.addEventListener("click", () => formNuevoLead.classList.toggle("oculta"));
+
+  formNuevoLead.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const nombre = document.getElementById("lead-nombre").value.trim();
+    const telefono = document.getElementById("lead-telefono").value.trim();
+    const uso = document.getElementById("lead-uso").value.trim();
+    const presupuesto = document.getElementById("lead-presupuesto").value.trim();
+
+    const boton = formNuevoLead.querySelector('button[type="submit"]');
+    boton.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/crear-lead-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono, nombre, uso, presupuesto }),
+      });
+      const datos = await respuesta.json();
+      if (!respuesta.ok) throw new Error(datos.error || "No se pudo crear el lead");
+      window.location.href = `/conversacion/${PRODUCTO}/${telefono}`;
+    } catch (error) {
+      alert(error.message);
+      boton.disabled = false;
+    }
+  });
+}
+
+// ============ Acciones rápidas: Crear Tarea (página /dashboard) ============
+const botonAbrirTareaRapida = document.getElementById("boton-abrir-tarea-rapida");
+const formTareaRapida = document.getElementById("form-tarea-rapida");
+if (botonAbrirTareaRapida && formTareaRapida) {
+  botonAbrirTareaRapida.addEventListener("click", () => formTareaRapida.classList.toggle("oculta"));
+
+  const selectorConceptoRapido = document.getElementById("tarea-rapida-concepto");
+  const campoOtroRapido = document.getElementById("tarea-rapida-otro");
+  selectorConceptoRapido.addEventListener("change", () => {
+    const esOtro = selectorConceptoRapido.value === "otro";
+    campoOtroRapido.classList.toggle("oculta", !esOtro);
+  });
+
+  formTareaRapida.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const telefono = document.getElementById("tarea-rapida-lead").value;
+    const concepto = selectorConceptoRapido.value === "otro" ? campoOtroRapido.value.trim() : selectorConceptoRapido.value;
+    const fecha = document.getElementById("tarea-rapida-fecha").value;
+    if (!telefono || !concepto || !fecha) {
+      alert("Elige un lead, escribe el concepto y una fecha.");
+      return;
+    }
+
+    const boton = formTareaRapida.querySelector('button[type="submit"]');
+    boton.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/tareas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono, concepto, fecha }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo crear la tarea");
+      window.location.reload();
+    } catch (error) {
+      alert(error.message);
+      boton.disabled = false;
+    }
+  });
+}
+
 // ============ Botón "Tomar caso" (página /dashboard/lista/intervencion) ============
 document.addEventListener("click", async (evento) => {
   const botonTomarCaso = evento.target.closest(".boton-tomar-caso");
@@ -171,6 +242,41 @@ document.addEventListener("change", async (evento) => {
     }
   }
 });
+
+// ============ Meta mensual editable (página /dashboard/equipo, solo admin) ============
+document.addEventListener(
+  "blur",
+  async (evento) => {
+    const campo = evento.target.closest?.(".campo-meta-mensual");
+    if (!campo) return;
+
+    const usuarioId = campo.dataset.usuarioId;
+    const valorAnterior = campo.dataset.valorAnterior ?? campo.defaultValue;
+    const valorNuevo = campo.value.trim();
+    if (valorNuevo === (campo.dataset.valorAnterior ?? campo.defaultValue)) return;
+
+    campo.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/meta-mensual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          usuarioId: Number(usuarioId),
+          monto: valorNuevo === "" ? null : Number(valorNuevo.replace(/[^\d.]/g, "")),
+        }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo guardar la meta");
+      campo.dataset.valorAnterior = valorNuevo;
+    } catch (error) {
+      console.error("Error guardando meta mensual:", error);
+      campo.value = valorAnterior;
+      alert("No se pudo guardar la meta. Intenta de nuevo.");
+    } finally {
+      campo.disabled = false;
+    }
+  },
+  true
+);
 
 // ============ Valor de venta editable (página /dashboard/oportunidades) ============
 document.addEventListener(

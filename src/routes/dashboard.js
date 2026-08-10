@@ -5,7 +5,13 @@ import {
   listarVisitasAgendadas,
   obtenerMetricasConversion,
 } from "../db/productoDb.js";
-import { listarLeadsCrm, listarUsuariosActivos, listarEtapas, listarTareasPendientes } from "../db/crm.js";
+import {
+  listarLeadsCrm,
+  listarUsuariosActivos,
+  listarEtapas,
+  listarTareasPendientes,
+  obtenerMetaMensual,
+} from "../db/crm.js";
 import { requiereLogin } from "../middleware/auth.js";
 
 const router = Router();
@@ -247,14 +253,39 @@ router.get("/dashboard", async (req, res) => {
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
-    const datos = await construirDatosDashboard(slug, req.session.usuario);
+    const usuario = req.session.usuario;
+    const hoy = hoyISOColombia();
+
+    const [datosTriage, oportunidades, tareasPendientes, conversaciones] = await Promise.all([
+      construirDatosDashboard(slug, usuario),
+      obtenerOportunidades(slug, usuario),
+      listarTareasPendientes(slug),
+      listarConversacionesParaTriage(slug),
+    ]);
+    const mapaNombres = new Map(conversaciones.map((c) => [c.telefono, c.respuestas?.nombre]));
+
+    const misTareasHoy = filtrarPorAsesor(tareasPendientes, usuario)
+      .filter((t) => new Date(t.fecha).toLocaleDateString("en-CA", { timeZone: "America/Bogota" }) <= hoy)
+      .map((t) => ({ ...t, nombre: mapaNombres.get(t.telefono) || t.telefono }));
+
+    const cierresEsperados = oportunidades.reduce((suma, o) => suma + (o.valor_venta || 0), 0);
+    const metaMensual = usuario.rol === "admin" ? null : await obtenerMetaMensual(usuario.id);
+    const progresoMeta = metaMensual ? Math.min(100, Math.round((cierresEsperados / metaMensual) * 100)) : null;
 
     res.render("dashboard", {
       productos,
       productoActual: producto,
-      usuario: req.session.usuario,
-      resumen: datos.resumen,
-      metricas: datos.metricas,
+      usuario,
+      resumen: datosTriage.resumen,
+      metricas: datosTriage.metricas,
+      misOportunidades: oportunidades.length,
+      misOportunidadesLista: oportunidades,
+      oportunidadesEnRiesgo: datosTriage.resumen.leadsEnfriandose,
+      actividadesHoy: misTareasHoy,
+      oportunidadesPreview: oportunidades.slice(0, 5),
+      cierresEsperados,
+      metaMensual,
+      progresoMeta,
     });
   } catch (error) {
     console.error("Error cargando dashboard:", error);
@@ -341,38 +372,44 @@ router.get("/dashboard/lista/:tipo", async (req, res) => {
 // su % de probabilidad, última fecha de contacto, y valor de venta (editable
 // a mano, porque no hay ninguna fuente automática de ese dato). Excluye
 // Remarketing y No contactar — esas ya no son oportunidades "activas".
+// Reutilizable: la usan tanto /dashboard (para el resumen y la vista previa)
+// como /dashboard/oportunidades (la tabla completa).
+async function obtenerOportunidades(slug, usuario) {
+  const [conversaciones, leadsCrm] = await Promise.all([
+    listarConversacionesParaTriage(slug),
+    listarLeadsCrm(slug),
+  ]);
+  const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
+
+  const oportunidades = conversaciones
+    .map((c) => {
+      const overlay = mapaCrm.get(c.telefono);
+      return {
+        telefono: c.telefono,
+        nombre: overlay?.nombre_override || c.respuestas?.nombre || c.telefono,
+        etapa_nombre: overlay?.etapa_nombre || "Lead",
+        etapa_id: overlay?.etapa_id || null,
+        etapa_porcentaje: overlay?.etapa_porcentaje ?? null,
+        ultimo_contacto: c.ultimo_mensaje_cliente_en,
+        valor_venta: overlay?.valor_venta ? Number(overlay.valor_venta) : null,
+        asesor_id: overlay?.asesor_id || null,
+        asesor_nombre: overlay?.asesor_nombre || null,
+      };
+    })
+    .filter((o) => o.etapa_nombre !== "Remarketing" && o.etapa_nombre !== "No contactar");
+
+  const filtradas = filtrarPorAsesor(oportunidades, usuario);
+  filtradas.sort((a, b) => new Date(b.ultimo_contacto || 0) - new Date(a.ultimo_contacto || 0));
+  return filtradas;
+}
+
 router.get("/dashboard/oportunidades", async (req, res) => {
   try {
     const slug = req.query.producto || "senderos";
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
-    const [conversaciones, leadsCrm] = await Promise.all([
-      listarConversacionesParaTriage(slug),
-      listarLeadsCrm(slug),
-    ]);
-    const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
-
-    const oportunidades = conversaciones
-      .map((c) => {
-        const overlay = mapaCrm.get(c.telefono);
-        return {
-          telefono: c.telefono,
-          nombre: overlay?.nombre_override || c.respuestas?.nombre || c.telefono,
-          etapa_nombre: overlay?.etapa_nombre || "Lead",
-          etapa_id: overlay?.etapa_id || null,
-          etapa_porcentaje: overlay?.etapa_porcentaje ?? null,
-          ultimo_contacto: c.ultimo_mensaje_cliente_en,
-          valor_venta: overlay?.valor_venta || null,
-          asesor_id: overlay?.asesor_id || null,
-          asesor_nombre: overlay?.asesor_nombre || null,
-        };
-      })
-      .filter((o) => o.etapa_nombre !== "Remarketing" && o.etapa_nombre !== "No contactar");
-
-    const filtradas = filtrarPorAsesor(oportunidades, req.session.usuario);
-    filtradas.sort((a, b) => new Date(b.ultimo_contacto || 0) - new Date(a.ultimo_contacto || 0));
-
+    const oportunidades = await obtenerOportunidades(slug, req.session.usuario);
     const etapas = await listarEtapas(slug);
     const etapasSeleccionables = etapas.filter(
       (e) => e.nombre !== "Remarketing" && e.nombre !== "No contactar"
@@ -382,7 +419,7 @@ router.get("/dashboard/oportunidades", async (req, res) => {
       productos,
       productoActual: producto,
       usuario: req.session.usuario,
-      oportunidades: filtradas,
+      oportunidades,
       etapas: etapasSeleccionables,
     });
   } catch (error) {
@@ -429,6 +466,29 @@ router.get("/dashboard/tareas", async (req, res) => {
   } catch (error) {
     console.error("Error cargando tareas:", error);
     res.status(500).send("Error cargando las tareas");
+  }
+});
+
+// SOLO admin — página simple para fijar la meta mensual de cada vendedor.
+router.get("/dashboard/equipo", async (req, res) => {
+  try {
+    if (req.session.usuario.rol !== "admin") return res.status(403).send("Solo un administrador puede ver esto");
+
+    const slug = req.query.producto || "senderos";
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).send("Producto no encontrado");
+
+    const usuarios = await listarUsuariosActivos();
+
+    res.render("dashboard-equipo", {
+      productos,
+      productoActual: producto,
+      usuario: req.session.usuario,
+      usuarios,
+    });
+  } catch (error) {
+    console.error("Error cargando equipo:", error);
+    res.status(500).send("Error cargando el equipo");
   }
 });
 

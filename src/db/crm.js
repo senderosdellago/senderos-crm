@@ -30,6 +30,10 @@ export async function asegurarEsquema() {
   `);
 
   await pool.query(`
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS meta_mensual NUMERIC;
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS etapas (
       id SERIAL PRIMARY KEY,
       producto TEXT NOT NULL,
@@ -449,9 +453,22 @@ export async function guardarNotas(producto, telefono, notas) {
 export async function listarUsuariosActivos() {
   await asegurarEsquema();
   const resultado = await pool.query(
-    "SELECT id, nombre, email, rol FROM usuarios WHERE activo = true ORDER BY nombre ASC"
+    "SELECT id, nombre, email, rol, meta_mensual FROM usuarios WHERE activo = true ORDER BY nombre ASC"
   );
   return resultado.rows;
+}
+
+export async function obtenerMetaMensual(usuarioId) {
+  await asegurarEsquema();
+  const resultado = await pool.query("SELECT meta_mensual FROM usuarios WHERE id = $1", [usuarioId]);
+  const valor = resultado.rows[0]?.meta_mensual;
+  return valor != null ? Number(valor) : null;
+}
+
+// SOLO admin puede fijar la meta de un vendedor (se valida en la ruta, no
+// aquí — esta función solo ejecuta el guardado).
+export async function guardarMetaMensual(usuarioId, monto) {
+  await pool.query("UPDATE usuarios SET meta_mensual = $1 WHERE id = $2", [monto, usuarioId]);
 }
 
 // asesorId puede ser null para "sin asignar" (desasignar).

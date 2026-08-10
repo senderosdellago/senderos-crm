@@ -15,6 +15,9 @@
     <nav class="nav-principal">
       <a href="/dashboard?producto=<%= productoActual.slug %>" class="activo">Dashboard</a>
       <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
+      <% if (usuario.rol === "admin") { %>
+        <a href="/dashboard/equipo?producto=<%= productoActual.slug %>">Equipo</a>
+      <% } %>
     </nav>
     <div class="encabezado-usuario">
       <span><%= usuario.nombre %> <% if (usuario.rol === "admin") { %>(admin)<% } %></span>
@@ -23,13 +26,102 @@
   </header>
 
   <main class="contenedor-dashboard">
-    <p class="saludo-dashboard">
-      Hola, <%= usuario.nombre.split(" ")[0] %> —
-      <%= usuario.rol === "admin" ? "esto es lo que está pasando con todos los leads." : "esto es lo que tienes asignado hoy." %>
-    </p>
+    <p class="saludo-dashboard">¡Bienvenido, <%= usuario.nombre.split(" ")[0] %>! Aquí tienes un resumen de tu día.</p>
 
-    <div class="grid-resumen" id="grid-resumen">
-      <%- include("parciales/tarjetas-resumen", { resumen, producto: productoActual.slug }) %>
+    <div class="grid-metricas-vendedor">
+      <div class="tarjeta-metrica">
+        <p class="tarjeta-resumen-etiqueta">Mis Oportunidades</p>
+        <p class="metrica-grande"><%= misOportunidades %></p>
+        <p class="texto-discreto">Activas</p>
+      </div>
+      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/lista/enfriandose?producto=<%= productoActual.slug %>">
+        <p class="tarjeta-resumen-etiqueta">Oportunidades en Riesgo</p>
+        <p class="metrica-grande numero-urgente"><%= oportunidadesEnRiesgo %></p>
+        <p class="texto-discreto">Requieren atención</p>
+      </a>
+      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/tareas?producto=<%= productoActual.slug %>">
+        <p class="tarjeta-resumen-etiqueta">Actividades Hoy</p>
+        <p class="metrica-grande numero-caliente"><%= actividadesHoy.length %></p>
+        <p class="texto-discreto">Pendientes</p>
+      </a>
+      <div class="tarjeta-metrica">
+        <p class="tarjeta-resumen-etiqueta">Cierres Esperados</p>
+        <p class="metrica-grande">$<%= cierresEsperados.toLocaleString("es-CO") %></p>
+        <% if (metaMensual) { %>
+          <p class="texto-discreto">Meta: $<%= metaMensual.toLocaleString("es-CO") %></p>
+          <div class="barra-progreso"><div class="barra-progreso-relleno" style="width: <%= progresoMeta %>%"></div></div>
+          <p class="texto-discreto"><%= progresoMeta %>%</p>
+        <% } else { %>
+          <p class="texto-discreto">Sin meta configurada</p>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="grid-tres-columnas">
+      <section class="columna-dashboard">
+        <h2 class="titulo-seccion">Mis Actividades de Hoy</h2>
+        <ul class="lista-actividades">
+          <% if (actividadesHoy.length === 0) { %>
+            <li class="texto-discreto">No tienes tareas para hoy 🎉</li>
+          <% } %>
+          <% actividadesHoy.forEach((t) => { %>
+            <li>
+              <span class="actividad-concepto"><%= t.concepto %></span>
+              <span class="texto-discreto"><%= t.nombre %></span>
+            </li>
+          <% }) %>
+        </ul>
+      </section>
+
+      <section class="columna-dashboard">
+        <h2 class="titulo-seccion">Mis Oportunidades Activas</h2>
+        <ul class="lista-oportunidades-preview">
+          <% if (oportunidadesPreview.length === 0) { %>
+            <li class="texto-discreto">No tienes oportunidades activas todavía.</li>
+          <% } %>
+          <% oportunidadesPreview.forEach((o) => { %>
+            <li>
+              <a href="/conversacion/<%= productoActual.slug %>/<%= o.telefono %>"><%= o.nombre %></a>
+              <span class="etapa-preview"><%= o.etapa_nombre %><% if (o.etapa_porcentaje != null) { %> · <%= o.etapa_porcentaje %>%<% } %></span>
+              <span class="texto-discreto"><%= o.valor_venta ? "$" + o.valor_venta.toLocaleString("es-CO") : "—" %></span>
+            </li>
+          <% }) %>
+        </ul>
+        <a class="enlace-volver" href="/dashboard/oportunidades?producto=<%= productoActual.slug %>">Ver todas mis oportunidades →</a>
+      </section>
+
+      <section class="columna-dashboard">
+        <h2 class="titulo-seccion">Acciones Rápidas</h2>
+        <button id="boton-abrir-nuevo-lead" class="boton boton-accion-rapida">+ Nuevo Lead</button>
+        <form id="form-nuevo-lead" class="form-accion-rapida oculta">
+          <input type="text" id="lead-nombre" placeholder="Nombre" required />
+          <input type="text" id="lead-telefono" placeholder="Teléfono (ej. 573001112233)" required />
+          <input type="text" id="lead-uso" placeholder="Uso (opcional)" />
+          <input type="text" id="lead-presupuesto" placeholder="Presupuesto (opcional)" />
+          <button type="submit" class="boton">Crear lead</button>
+        </form>
+
+        <button id="boton-abrir-tarea-rapida" class="boton boton-accion-rapida">+ Crear Tarea</button>
+        <form id="form-tarea-rapida" class="form-accion-rapida oculta">
+          <select id="tarea-rapida-lead" required>
+            <option value="">Elige un lead...</option>
+            <% misOportunidadesLista.forEach((o) => { %>
+              <option value="<%= o.telefono %>"><%= o.nombre %></option>
+            <% }) %>
+          </select>
+          <select id="tarea-rapida-concepto">
+            <option value="Enviar propuesta económica">Enviar propuesta económica</option>
+            <option value="Enviar borrador promesa compraventa">Enviar borrador promesa compraventa</option>
+            <option value="Llamar nuevamente">Llamar nuevamente</option>
+            <option value="Enviar un mensaje de seguimiento">Enviar un mensaje de seguimiento</option>
+            <option value="Reagendar visita">Reagendar visita</option>
+            <option value="otro">Otro...</option>
+          </select>
+          <input type="text" id="tarea-rapida-otro" placeholder="Describe la tarea..." class="oculta" />
+          <input type="date" id="tarea-rapida-fecha" required />
+          <button type="submit" class="boton">Crear tarea</button>
+        </form>
+      </section>
     </div>
 
     <section id="seccion-metricas">
