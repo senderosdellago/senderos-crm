@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { obtenerProducto } from "../config/productos.js";
-import { asegurarLeadCrm, registrarEvento } from "../db/crm.js";
+import { asegurarLeadCrm, registrarEvento, avanzarEtapaSiCorresponde, establecerEtapaEspecial } from "../db/crm.js";
+import { obtenerConversacionProducto } from "../db/productoDb.js";
 
 const router = Router();
 
@@ -26,6 +27,32 @@ router.post("/webhook/:producto", async (req, res) => {
 
     await asegurarLeadCrm(slug, telefono);
     await registrarEvento(slug, telefono, "novedad_conversacion");
+
+    // Avance automático de etapa: el bot ya interactuó con el cliente (existe
+    // la conversación con al menos un mensaje) → mínimo "Contacto". Si además
+    // ya tiene visita agendada → "Visita agendada". Nunca retrocede una etapa
+    // que el comercial ya movió más adelante a mano (ver avanzarEtapaSiCorresponde).
+    try {
+      const conversacion = await obtenerConversacionProducto(slug, telefono);
+      if (conversacion) {
+        if (conversacion.no_contactar) {
+          await establecerEtapaEspecial(slug, telefono, "No contactar");
+        } else if (conversacion.en_remarketing) {
+          await establecerEtapaEspecial(slug, telefono, "Remarketing");
+        } else {
+          if ((conversacion.historial || []).length > 0) {
+            await avanzarEtapaSiCorresponde(slug, telefono, "Contacto");
+          }
+          if (conversacion.visita_agendada) {
+            await avanzarEtapaSiCorresponde(slug, telefono, "Visita agendada");
+          }
+        }
+      }
+    } catch (errorEtapa) {
+      // Un fallo acá NUNCA debe tumbar el webhook — en el peor caso, el
+      // comercial mueve la etapa a mano, que es lo que ya hacía antes.
+      console.error("Error avanzando etapa automática:", errorEtapa);
+    }
 
     // Avisa a todos los navegadores conectados a este producto, en vivo.
     const io = req.app.get("io");

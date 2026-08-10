@@ -5,7 +5,7 @@ import {
   listarVisitasAgendadas,
   obtenerMetricasConversion,
 } from "../db/productoDb.js";
-import { listarLeadsCrm } from "../db/crm.js";
+import { listarLeadsCrm, listarUsuariosActivos, listarEtapas } from "../db/crm.js";
 import { requiereLogin } from "../middleware/auth.js";
 
 const router = Router();
@@ -323,6 +323,60 @@ router.get("/dashboard/lista/:tipo", async (req, res) => {
   } catch (error) {
     console.error("Error cargando lista:", error);
     res.status(500).send("Error cargando la lista");
+  }
+});
+
+// Oportunidades Activas: la vista de pipeline clásica — cliente, etapa con
+// su % de probabilidad, última fecha de contacto, y valor de venta (editable
+// a mano, porque no hay ninguna fuente automática de ese dato). Excluye
+// Remarketing y No contactar — esas ya no son oportunidades "activas".
+router.get("/dashboard/oportunidades", async (req, res) => {
+  try {
+    const slug = req.query.producto || "senderos";
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).send("Producto no encontrado");
+
+    const [conversaciones, leadsCrm] = await Promise.all([
+      listarConversacionesParaTriage(slug),
+      listarLeadsCrm(slug),
+    ]);
+    const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
+
+    const oportunidades = conversaciones
+      .map((c) => {
+        const overlay = mapaCrm.get(c.telefono);
+        return {
+          telefono: c.telefono,
+          nombre: overlay?.nombre_override || c.respuestas?.nombre || c.telefono,
+          etapa_nombre: overlay?.etapa_nombre || "Lead",
+          etapa_id: overlay?.etapa_id || null,
+          etapa_porcentaje: overlay?.etapa_porcentaje ?? null,
+          ultimo_contacto: c.ultimo_mensaje_cliente_en,
+          valor_venta: overlay?.valor_venta || null,
+          asesor_id: overlay?.asesor_id || null,
+          asesor_nombre: overlay?.asesor_nombre || null,
+        };
+      })
+      .filter((o) => o.etapa_nombre !== "Remarketing" && o.etapa_nombre !== "No contactar");
+
+    const filtradas = filtrarPorAsesor(oportunidades, req.session.usuario);
+    filtradas.sort((a, b) => new Date(b.ultimo_contacto || 0) - new Date(a.ultimo_contacto || 0));
+
+    const etapas = await listarEtapas(slug);
+    const etapasSeleccionables = etapas.filter(
+      (e) => e.nombre !== "Remarketing" && e.nombre !== "No contactar"
+    );
+
+    res.render("dashboard-oportunidades", {
+      productos,
+      productoActual: producto,
+      usuario: req.session.usuario,
+      oportunidades: filtradas,
+      etapas: etapasSeleccionables,
+    });
+  } catch (error) {
+    console.error("Error cargando oportunidades:", error);
+    res.status(500).send("Error cargando las oportunidades");
   }
 });
 

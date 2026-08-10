@@ -7,6 +7,7 @@ import {
   guardarNotas,
   guardarResultadoVisita,
   asignarAsesor,
+  actualizarCampoOportunidad,
 } from "../db/crm.js";
 import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
 
@@ -103,7 +104,12 @@ router.post("/acciones/etapa", async (req, res) => {
       return res.status(400).json({ error: "Falta 'producto', 'telefono' o 'etapaId'" });
     }
 
-    await asegurarLeadCrm(slug, telefono);
+    const leadActual = await asegurarLeadCrm(slug, telefono);
+    const esAdmin = req.session.usuario.rol === "admin";
+    if (!esAdmin && leadActual.asesor_id !== req.session.usuario.id) {
+      return res.status(403).json({ error: "No autorizado — este lead no está asignado a ti" });
+    }
+
     await pool.query(
       "UPDATE leads_crm SET etapa_id = $1, actualizado_en = now() WHERE producto = $2 AND telefono = $3",
       [etapaId, slug, telefono]
@@ -196,6 +202,35 @@ router.post("/acciones/reagendar-visita", async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error("Error reagendando visita:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Edita un campo puntual de la oportunidad (valor de venta, nombre). Un
+// asesor solo puede editar SUS propios leads — mismo candado que el resto
+// del sistema; un admin puede editar cualquiera.
+router.post("/acciones/editar-campo", async (req, res) => {
+  try {
+    const { producto: slug, telefono, campo, valor } = req.body;
+    if (!slug || !telefono || !campo) {
+      return res.status(400).json({ error: "Falta 'producto', 'telefono', o 'campo'" });
+    }
+
+    const leadActual = await asegurarLeadCrm(slug, telefono);
+    const esAdmin = req.session.usuario.rol === "admin";
+    if (!esAdmin && leadActual.asesor_id !== req.session.usuario.id) {
+      return res.status(403).json({ error: "No autorizado — este lead no está asignado a ti" });
+    }
+
+    await actualizarCampoOportunidad(slug, telefono, campo, valor);
+    await registrarEvento(slug, telefono, "campo_editado", {
+      por: req.session.usuario.nombre,
+      campo,
+    });
+    emitirNovedad(req, slug, telefono);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error editando campo:", error);
     res.status(500).json({ error: error.message });
   }
 });

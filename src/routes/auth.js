@@ -5,7 +5,7 @@ import { pool, asegurarEsquema } from "../db/crm.js";
 const router = Router();
 
 router.get("/login", (req, res) => {
-  if (req.session?.usuario) return res.redirect("/bandeja");
+  if (req.session?.usuario) return res.redirect("/dashboard");
   res.render("login", { error: null });
 });
 
@@ -34,7 +34,7 @@ router.post("/login", async (req, res) => {
       email: usuario.email,
       rol: usuario.rol,
     };
-    res.redirect("/bandeja");
+    res.redirect("/dashboard");
   } catch (error) {
     console.error("Error en login:", error);
     res.status(500).render("login", { error: "Tuvimos un problema técnico. Intenta de nuevo." });

@@ -36,6 +36,10 @@ function actualizarResumen(resumen) {
   const gridResumen = document.getElementById("grid-resumen");
   if (!gridResumen) return;
   gridResumen.innerHTML = `
+    <a class="tarjeta-resumen tarjeta-resumen-link" href="/dashboard/oportunidades?producto=${PRODUCTO}">
+      <p class="tarjeta-resumen-etiqueta">Oportunidades activas</p>
+      <p class="tarjeta-resumen-numero">Ver pipeline →</p>
+    </a>
     <a class="tarjeta-resumen tarjeta-resumen-link" href="/dashboard/lista/intervencion?producto=${PRODUCTO}">
       <p class="tarjeta-resumen-etiqueta">Requieren intervención</p>
       <p class="tarjeta-resumen-numero numero-urgente">${resumen.requierenIntervencion}</p>
@@ -116,7 +120,67 @@ document.addEventListener("click", async (evento) => {
   }
 });
 
-// ============ Formulario de reagendar (página /dashboard/visitas) ============
+// ============ Selector de etapa en línea (página /dashboard/oportunidades) ============
+document.addEventListener("change", async (evento) => {
+  const selector = evento.target.closest(".selector-etapa-inline");
+  if (selector) {
+    const telefono = selector.dataset.telefono;
+    const etapaIdAnterior = selector.dataset.valorAnterior || "";
+    selector.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/etapa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono, etapaId: Number(selector.value) }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo guardar la etapa");
+      selector.dataset.valorAnterior = selector.value;
+    } catch (error) {
+      console.error("Error guardando etapa:", error);
+      selector.value = etapaIdAnterior;
+      alert("No se pudo guardar el cambio de etapa. Intenta de nuevo.");
+    } finally {
+      selector.disabled = false;
+    }
+  }
+});
+
+// ============ Valor de venta editable (página /dashboard/oportunidades) ============
+document.addEventListener(
+  "blur",
+  async (evento) => {
+    const campo = evento.target.closest?.(".campo-valor-venta");
+    if (!campo) return;
+
+    const telefono = campo.dataset.telefono;
+    const valorAnterior = campo.dataset.valorAnterior ?? campo.defaultValue;
+    const valorNuevo = campo.value.trim();
+    if (valorNuevo === (campo.dataset.valorAnterior ?? campo.defaultValue)) return; // no cambió, no llama al servidor
+
+    campo.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/editar-campo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          producto: PRODUCTO,
+          telefono,
+          campo: "valor_venta",
+          valor: valorNuevo === "" ? null : Number(valorNuevo.replace(/[^\d.]/g, "")),
+        }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo guardar el valor");
+      campo.dataset.valorAnterior = valorNuevo;
+    } catch (error) {
+      console.error("Error guardando valor de venta:", error);
+      campo.value = valorAnterior;
+      alert("No se pudo guardar el valor. Intenta de nuevo.");
+    } finally {
+      campo.disabled = false;
+    }
+  },
+  true // captura, porque "blur" no burbujea de forma normal
+);
 document.addEventListener("submit", async (evento) => {
   const form = evento.target.closest(".form-reagendar");
   if (!form) return;

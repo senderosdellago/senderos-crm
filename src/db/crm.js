@@ -38,6 +38,9 @@ export async function asegurarEsquema() {
       UNIQUE(producto, orden)
     );
   `);
+  await pool.query(`
+    ALTER TABLE etapas ADD COLUMN IF NOT EXISTS porcentaje INTEGER;
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS leads_crm (
@@ -58,7 +61,9 @@ export async function asegurarEsquema() {
     ALTER TABLE leads_crm
       ADD COLUMN IF NOT EXISTS notas TEXT,
       ADD COLUMN IF NOT EXISTS visita_resultado TEXT,
-      ADD COLUMN IF NOT EXISTS visita_resultado_en TIMESTAMPTZ;
+      ADD COLUMN IF NOT EXISTS visita_resultado_en TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS valor_venta NUMERIC,
+      ADD COLUMN IF NOT EXISTS nombre_override TEXT;
   `);
 
   await pool.query(`
@@ -91,9 +96,127 @@ export async function asegurarEsquema() {
   `);
 
   await sembrarEtapasIniciales();
+  await migrarEtapasV2();
 
   listo = true;
 }
+
+// Migración puntual: la primera versión del pipeline no tenía "Negociación"
+// ni porcentajes, y "Visita realizada" se llamaba "Visitado". Esta función
+// ajusta eso EN LOS REGISTROS QUE YA EXISTEN, sin borrar ni recrear filas —
+// así los leads que ya tenían una etapa asignada (leads_crm.etapa_id) no
+// pierden esa asignación. Es idempotente: si ya se corrió una vez (ya existe
+// "Negociación"), no hace nada la próxima vez que arranque el servidor.
+async function migrarEtapasV2() {
+  const nombresObjetivo = MAPA_ETAPAS_ESTANDAR;
+
+  for (const producto of productos) {
+    const filas = await pool.query("SELECT id, nombre, orden FROM etapas WHERE producto = $1", [
+      producto.slug,
+    ]);
+    if (filas.rows.length === 0) continue; // producto sin etapas todavía, sembrarEtapasIniciales ya lo maneja
+
+    const yaMigrado = filas.rows.some((f) => f.nombre === "Negociación");
+    if (yaMigrado) continue;
+
+    const cliente = await pool.connect();
+    try {
+      await cliente.query("BEGIN");
+
+      // Paso 1: mover las etapas de orden 5 en adelante a un rango temporal
+      // alto, para no chocar con el UNIQUE(producto, orden) mientras se
+      // reordena (Negociación necesita el puesto 5, que hoy ocupa Separación).
+      await cliente.query(
+        "UPDATE etapas SET orden = orden + 1000 WHERE producto = $1 AND orden >= 5",
+        [producto.slug]
+      );
+
+      // Paso 2: renombrar "Visitado" → "Visita realizada" si existe con ese nombre viejo.
+      await cliente.query(
+        "UPDATE etapas SET nombre = 'Visita realizada' WHERE producto = $1 AND nombre = 'Visitado'",
+        [producto.slug]
+      );
+      // Y "Promesa de compraventa" → "Promesa", si así estaba.
+      await cliente.query(
+        "UPDATE etapas SET nombre = 'Promesa' WHERE producto = $1 AND nombre = 'Promesa de compraventa'",
+        [producto.slug]
+      );
+
+      // Paso 3: insertar "Negociación" en el puesto 5.
+      await cliente.query(
+        `INSERT INTO etapas (producto, nombre, orden, porcentaje)
+         VALUES ($1, 'Negociación', 5, 80)
+         ON CONFLICT (producto, orden) DO NOTHING`,
+        [producto.slug]
+      );
+
+      // Paso 4: bajar del rango temporal a los valores finales, y de paso
+      // ponerles el porcentaje/orden correcto a cada una según su nombre.
+      const filasTemporales = await cliente.query(
+        "SELECT id, nombre, orden FROM etapas WHERE producto = $1 AND orden >= 1000",
+        [producto.slug]
+      );
+      for (const fila of filasTemporales.rows) {
+        const objetivo = nombresObjetivo[fila.nombre];
+        if (objetivo) {
+          await cliente.query("UPDATE etapas SET orden = $1, porcentaje = $2 WHERE id = $3", [
+            objetivo.orden,
+            objetivo.porcentaje,
+            fila.id,
+          ]);
+        } else {
+          // Etapa con nombre que no reconocemos (el cliente ya la había
+          // renombrado a su manera) — se queda con su nombre, solo se le
+          // quita el desplazamiento temporal para que no quede huérfana.
+          await cliente.query("UPDATE etapas SET orden = orden - 1000 WHERE id = $1", [fila.id]);
+        }
+      }
+
+      // Paso 5: ponerle porcentaje también a las etapas que no pasaron por
+      // el rango temporal (Lead, Contacto, Visita agendada quedaron con su
+      // orden de siempre, 1-3, y todavía no tienen porcentaje asignado).
+      for (const [nombre, { porcentaje }] of Object.entries(nombresObjetivo)) {
+        await cliente.query(
+          "UPDATE etapas SET porcentaje = $1 WHERE producto = $2 AND nombre = $3 AND porcentaje IS NULL",
+          [porcentaje, producto.slug, nombre]
+        );
+      }
+
+      // Paso 6: agregar Remarketing y No contactar si no existían.
+      await cliente.query(
+        `INSERT INTO etapas (producto, nombre, orden, porcentaje)
+         VALUES ($1, 'Remarketing', 90, NULL), ($1, 'No contactar', 91, NULL)
+         ON CONFLICT (producto, orden) DO NOTHING`,
+        [producto.slug]
+      );
+
+      await cliente.query("COMMIT");
+      console.log(`[Migración] Etapas de "${producto.slug}" actualizadas a la versión con porcentajes.`);
+    } catch (error) {
+      await cliente.query("ROLLBACK");
+      console.error(`[Migración] Error migrando etapas de "${producto.slug}":`, error);
+    } finally {
+      cliente.release();
+    }
+  }
+}
+
+// Mapa compartido nombre → { orden, porcentaje } para el pipeline estándar.
+// Lo usan tanto la siembra inicial (producto nuevo) como la migración de
+// productos que ya tenían etapas de la versión anterior (ver migrarEtapasV2).
+const MAPA_ETAPAS_ESTANDAR = {
+  Lead: { orden: 1, porcentaje: 10 },
+  Contacto: { orden: 2, porcentaje: 20 },
+  "Visita agendada": { orden: 3, porcentaje: 40 },
+  "Visita realizada": { orden: 4, porcentaje: 60 },
+  Negociación: { orden: 5, porcentaje: 80 },
+  Separación: { orden: 6, porcentaje: 100 },
+  Promesa: { orden: 7, porcentaje: null },
+  Escritura: { orden: 8, porcentaje: null },
+  Entrega: { orden: 9, porcentaje: null },
+  Remarketing: { orden: 90, porcentaje: null },
+  "No contactar": { orden: 91, porcentaje: null },
+};
 
 // Si un producto no tiene ninguna etapa registrada todavía, le crea las
 // etapas iniciales definidas en config/productos.js. No pisa nada si el
@@ -108,9 +231,11 @@ async function sembrarEtapasIniciales() {
 
     const etapas = producto.etapasIniciales || [];
     for (let i = 0; i < etapas.length; i++) {
+      const nombre = etapas[i];
+      const estandar = MAPA_ETAPAS_ESTANDAR[nombre];
       await pool.query(
-        "INSERT INTO etapas (producto, nombre, orden) VALUES ($1, $2, $3) ON CONFLICT (producto, orden) DO NOTHING",
-        [producto.slug, etapas[i], i + 1]
+        "INSERT INTO etapas (producto, nombre, orden, porcentaje) VALUES ($1, $2, $3, $4) ON CONFLICT (producto, orden) DO NOTHING",
+        [producto.slug, nombre, estandar?.orden ?? i + 1, estandar?.porcentaje ?? null]
       );
     }
   }
@@ -159,10 +284,83 @@ export async function listarEtapas(producto) {
   return resultado.rows;
 }
 
+// Avanza la etapa de un lead SOLO si la etapa objetivo está más adelante en
+// el pipeline que la actual — nunca retrocede algo que el comercial ya movió
+// manualmente más allá (ej. si ya está en "Negociación" y llega una novedad
+// de "visita agendada", NO lo regresa a "Visita agendada"). Si el lead no
+// tiene ninguna etapa asignada todavía, simplemente le pone la objetivo.
+// Devuelve true si sí avanzó, false si no hizo falta.
+export async function avanzarEtapaSiCorresponde(producto, telefono, nombreEtapaObjetivo) {
+  await asegurarEsquema();
+
+  const etapas = await listarEtapas(producto);
+  const objetivo = etapas.find((e) => e.nombre === nombreEtapaObjetivo);
+  if (!objetivo) return false; // el producto no tiene esa etapa configurada, no hacer nada
+
+  const lead = await pool.query(
+    "SELECT etapa_id FROM leads_crm WHERE producto = $1 AND telefono = $2",
+    [producto, telefono]
+  );
+  const etapaActualId = lead.rows[0]?.etapa_id || null;
+  const etapaActual = etapas.find((e) => e.id === etapaActualId);
+
+  // Si ya está en Remarketing o No contactar, nunca lo mueve automáticamente
+  // — esos son estados que el sistema o el cliente decidieron a propósito,
+  // no algo que una "novedad" normal deba pisar.
+  if (etapaActual && (etapaActual.nombre === "Remarketing" || etapaActual.nombre === "No contactar")) {
+    return false;
+  }
+
+  if (etapaActual && etapaActual.orden >= objetivo.orden) return false;
+
+  await pool.query(
+    "UPDATE leads_crm SET etapa_id = $1, actualizado_en = now() WHERE producto = $2 AND telefono = $3",
+    [objetivo.id, producto, telefono]
+  );
+  return true;
+}
+
+// Para "Remarketing" y "No contactar": a diferencia de avanzarEtapaSiCorresponde,
+// esta SÍ se puede aplicar sin importar en qué etapa estaba antes — son
+// estados especiales que el bot detectó (lead enfriado, o cliente pidió no
+// ser contactado más), no un paso normal del pipeline de ventas.
+export async function establecerEtapaEspecial(producto, telefono, nombreEtapa) {
+  await asegurarEsquema();
+  const etapas = await listarEtapas(producto);
+  const objetivo = etapas.find((e) => e.nombre === nombreEtapa);
+  if (!objetivo) return false;
+
+  await pool.query(
+    "UPDATE leads_crm SET etapa_id = $1, actualizado_en = now() WHERE producto = $2 AND telefono = $3",
+    [objetivo.id, producto, telefono]
+  );
+  return true;
+}
+
+// Campos que se pueden editar desde la tabla de Oportunidades Activas. Lista
+// blanca a propósito — nunca se arma el nombre de columna con lo que venga
+// del formulario, así no hay riesgo de inyección ni de tocar una columna que
+// no debería ser editable desde ahí.
+const CAMPOS_EDITABLES_OPORTUNIDAD = {
+  valor_venta: "valor_venta",
+  nombre_override: "nombre_override",
+};
+
+export async function actualizarCampoOportunidad(producto, telefono, campo, valor) {
+  const columna = CAMPOS_EDITABLES_OPORTUNIDAD[campo];
+  if (!columna) throw new Error(`Campo no editable: ${campo}`);
+
+  await asegurarLeadCrm(producto, telefono);
+  await pool.query(
+    `UPDATE leads_crm SET ${columna} = $1, actualizado_en = now() WHERE producto = $2 AND telefono = $3`,
+    [valor, producto, telefono]
+  );
+}
+
 export async function listarLeadsCrm(producto) {
   await asegurarEsquema();
   const resultado = await pool.query(
-    `SELECT lc.*, e.nombre AS etapa_nombre, u.nombre AS asesor_nombre
+    `SELECT lc.*, e.nombre AS etapa_nombre, e.porcentaje AS etapa_porcentaje, u.nombre AS asesor_nombre
      FROM leads_crm lc
      LEFT JOIN etapas e ON e.id = lc.etapa_id
      LEFT JOIN usuarios u ON u.id = lc.asesor_id

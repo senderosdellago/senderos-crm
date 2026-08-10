@@ -46,7 +46,7 @@ app.use(
   })
 );
 
-app.get("/", (req, res) => res.redirect(req.session?.usuario ? "/bandeja" : "/login"));
+app.get("/", (req, res) => res.redirect(req.session?.usuario ? "/dashboard" : "/login"));
 app.get("/health", async (req, res) => {
   try {
     await pool.query("SELECT 1");

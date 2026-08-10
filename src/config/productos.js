@@ -13,16 +13,21 @@ export const productos = [
     // URL base del bot (para llamar /interno/intervenir, /interno/devolver, etc.)
     botUrlEnvVar: "SENDEROS_BOT_URL",
     // Etapas por defecto si el producto no tiene ninguna todavía (se usan solo
-    // para sembrar la tabla `etapas` la primera vez).
+    // para sembrar la tabla `etapas` la primera vez). El porcentaje se asigna
+    // en la migración (ver db/crm.js migrarEtapasV2) — ahí está el mapa
+    // completo nombre → porcentaje, mantenlo sincronizado con esta lista.
     etapasIniciales: [
       "Lead",
       "Contacto",
       "Visita agendada",
-      "Visitado",
+      "Visita realizada",
+      "Negociación",
       "Separación",
-      "Promesa de compraventa",
+      "Promesa",
       "Escritura",
       "Entrega",
+      "Remarketing",
+      "No contactar",
     ],
   },
   // Cuando exista Winncom u otro producto, se agrega aquí:

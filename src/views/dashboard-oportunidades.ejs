@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oportunidades Activas — <%= productoActual.nombre %></title>
+  <link rel="stylesheet" href="/css/estilos.css" />
+</head>
+<body>
+  <header class="encabezado">
+    <div>
+      <strong><%= productoActual.nombre %></strong>
+    </div>
+    <nav class="nav-principal">
+      <a href="/dashboard?producto=<%= productoActual.slug %>" class="activo">Dashboard</a>
+      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
+    </nav>
+    <div class="encabezado-usuario">
+      <span><%= usuario.nombre %></span>
+      <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>
+    </div>
+  </header>
+
+  <main class="contenedor-dashboard">
+    <a class="enlace-volver" href="/dashboard?producto=<%= productoActual.slug %>">← Volver al dashboard</a>
+    <h1 class="titulo-pagina">Oportunidades Activas (<%= oportunidades.length %>)</h1>
+    <p class="texto-discreto">Haz clic sobre la etapa o el valor para editarlos. Remarketing y No contactar no aparecen aquí — ya no son oportunidades activas.</p>
+
+    <table class="tabla-calendario">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Etapa</th>
+          <% if (usuario.rol === "admin") { %><th>Asesor</th><% } %>
+          <th>Último contacto</th>
+          <th>Valor de venta</th>
+        </tr>
+      </thead>
+      <tbody id="cuerpo-oportunidades">
+        <% if (oportunidades.length === 0) { %>
+          <tr><td colspan="5" class="texto-discreto">No hay oportunidades activas por ahora.</td></tr>
+        <% } %>
+        <% oportunidades.forEach((o) => { %>
+          <tr data-telefono="<%= o.telefono %>">
+            <td><a href="/conversacion/<%= productoActual.slug %>/<%= o.telefono %>"><%= o.nombre %></a></td>
+            <td>
+              <select class="selector-etapa-inline" data-telefono="<%= o.telefono %>">
+                <% etapas.forEach((e) => { %>
+                  <option value="<%= e.id %>" <%= o.etapa_id === e.id ? "selected" : "" %>>
+                    <%= e.nombre %><%= e.porcentaje != null ? ` (${e.porcentaje}%)` : "" %>
+                  </option>
+                <% }) %>
+              </select>
+            </td>
+            <% if (usuario.rol === "admin") { %><td><%= o.asesor_nombre || "Sin asignar" %></td><% } %>
+            <td><%= o.ultimo_contacto ? new Date(o.ultimo_contacto).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "short" }) : "—" %></td>
+            <td>
+              <input
+                type="text"
+                class="campo-valor-venta"
+                data-telefono="<%= o.telefono %>"
+                value="<%= o.valor_venta || "" %>"
+                placeholder="$ —"
+              />
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    const PRODUCTO = "<%= productoActual.slug %>";
+  </script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

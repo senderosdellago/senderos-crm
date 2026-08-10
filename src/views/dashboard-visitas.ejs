@@ -76,7 +76,16 @@
             <td class="celda-acciones">
               <button class="boton boton-visita-resultado" data-telefono="<%= v.telefono %>" data-resultado="asistio">Sí asistió</button>
               <button class="boton boton-secundario boton-visita-resultado" data-telefono="<%= v.telefono %>" data-resultado="no_asistio">No asistió</button>
-              <button class="boton boton-secundario boton-visita-resultado" data-telefono="<%= v.telefono %>" data-resultado="reagendada">Se reagendó</button>
+              <button class="boton boton-secundario boton-abrir-reagendar" data-telefono="<%= v.telefono %>">Reagendar</button>
+            </td>
+          </tr>
+          <tr class="fila-reagendar oculta" data-telefono-form="<%= v.telefono %>">
+            <td colspan="5">
+              <form class="form-reagendar" data-telefono="<%= v.telefono %>">
+                <label>Fecha <input type="date" name="fechaISO" required /></label>
+                <label>Hora <input type="text" name="hora" placeholder="ej. 10:00 a.m." required /></label>
+                <button type="submit" class="boton">Guardar</button>
+              </form>
             </td>
           </tr>
         <% }) %>
