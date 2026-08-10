@@ -1,3 +1,20 @@
+/* ============ PALETA DE MARCA — Senderos del Lago ============
+   Extraída directamente del sitio real (senderosdellago.com), no inventada.
+   --dorado: color del logo y acentos de lujo (botones secundarios, nav)
+   --verde: el mismo verde del botón "Agendar visita" y la burbuja de WhatsApp de su sitio
+   --oscuro: el verde bosque casi negro del fondo de su página principal
+   --crema: el blanco cálido de los títulos sobre fondo oscuro
+*/
+:root {
+  --dorado: #C9A24B;
+  --dorado-oscuro: #A9843A;
+  --verde: #3FAE5A;
+  --verde-oscuro: #2F8A45;
+  --oscuro: #14251A;
+  --oscuro-2: #1C3324;
+  --crema: #F5F1E6;
+}
+
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -11,19 +28,22 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  background: var(--oscuro);
+  background: linear-gradient(160deg, var(--oscuro) 0%, var(--oscuro-2) 100%);
 }
+.login-logo { display: block; margin: 0 auto 8px; max-width: 160px; border-radius: 8px; }
 .tarjeta-login {
   background: #fff;
   padding: 32px;
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
   width: 320px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.tarjeta-login h1 { margin: 0; font-size: 22px; }
-.subtitulo { margin: 0 0 8px; color: #666; font-size: 14px; }
+.tarjeta-login h1 { margin: 0; font-size: 22px; text-align: center; color: var(--oscuro); }
+.subtitulo { margin: 0 0 8px; color: #666; font-size: 14px; text-align: center; }
 .tarjeta-login label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
 .tarjeta-login input {
   padding: 10px;
@@ -36,7 +56,7 @@ body {
   padding: 10px;
   border: none;
   border-radius: 6px;
-  background: #2e7d32;
+  background: var(--verde);
   color: #fff;
   font-size: 15px;
   cursor: pointer;
@@ -53,15 +73,18 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 8px 20px;
+  background: var(--oscuro);
+  border-bottom: 2px solid var(--dorado);
 }
-.encabezado-usuario { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.encabezado-marca { display: flex; align-items: center; gap: 10px; }
+.encabezado-logo { height: 40px; width: auto; display: block; border-radius: 4px; }
+.encabezado strong { color: var(--crema); font-weight: 600; letter-spacing: 0.02em; }
+.encabezado-usuario { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--crema); }
 .boton-enlace {
   background: none;
   border: none;
-  color: #2e7d32;
+  color: var(--dorado);
   cursor: pointer;
   text-decoration: none;
   font-size: 14px;
@@ -71,10 +94,10 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #bbb;
+  background: #6b6b6b;
   margin-left: 8px;
 }
-.punto-conexion.conectado { background: #2e7d32; }
+.punto-conexion.conectado { background: var(--verde); }
 
 .contenedor-bandeja { padding: 20px; }
 .tabla-bandeja { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
@@ -87,7 +110,7 @@ body {
 .etiqueta-frio { background: #e3f2fd; color: #1565c0; }
 .etiqueta-sin_definir { background: #eee; color: #666; }
 .etiqueta-bot { background: #ede7f6; color: #5e35b1; }
-.etiqueta-intervenida { background: #e8f5e9; color: #2e7d32; }
+.etiqueta-intervenida { background: #e8f5e9; color: var(--verde); }
 
 .contenedor-conversacion { padding: 20px; max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .panel-herramientas { display: flex; flex-direction: column; gap: 10px; background: #fff; border-radius: 8px; padding: 12px 16px; }
@@ -107,7 +130,7 @@ body {
 .lista-tareas { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .lista-tareas li { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
 .lista-tareas li.tarea-completada span:first-child { text-decoration: line-through; color: #999; }
-.boton-completar-tarea-inline { padding: 4px 10px; font-size: 12px; border: 1px solid #2e7d32; background: #fff; color: #2e7d32; border-radius: 6px; cursor: pointer; }
+.boton-completar-tarea-inline { padding: 4px 10px; font-size: 12px; border: 1px solid var(--verde); background: #fff; color: var(--verde); border-radius: 6px; cursor: pointer; }
 .oculta { display: none; }
 .lista-mensajes { display: flex; flex-direction: column; gap: 8px; background: #fff; border-radius: 8px; padding: 16px; min-height: 300px; }
 .burbuja { padding: 8px 12px; border-radius: 10px; max-width: 75%; font-size: 14px; white-space: pre-wrap; }
@@ -129,7 +152,7 @@ body {
   padding: 10px 16px;
   border: none;
   border-radius: 6px;
-  background: #2e7d32;
+  background: var(--verde);
   color: #fff;
   cursor: pointer;
   font-size: 14px;
@@ -149,12 +172,13 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
 .nav-principal a {
   padding: 6px 12px;
   border-radius: 6px;
-  color: #555;
+  color: var(--crema);
   text-decoration: none;
   font-size: 14px;
+  opacity: 0.75;
 }
-.nav-principal a.activo { background: #e8f5e9; color: #2e7d32; font-weight: 600; }
-.nav-principal a:hover:not(.activo) { background: #f5f5f5; }
+.nav-principal a.activo { background: rgba(201,162,75,0.18); color: var(--dorado); font-weight: 600; opacity: 1; }
+.nav-principal a:hover:not(.activo) { background: rgba(255,255,255,0.08); opacity: 1; }
 
 .contenedor-dashboard { padding: 20px; max-width: 960px; margin: 0 auto; }
 .saludo-dashboard { font-size: 16px; margin: 0 0 20px; color: #333; }
@@ -165,9 +189,11 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
 .tarjeta-metrica.tarjeta-resumen-link:hover { transform: translateY(-2px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .metrica-grande { font-size: 28px; font-weight: 700; color: #1c1e21; margin: 4px 0; }
 .barra-progreso { background: #eee; border-radius: 999px; height: 6px; overflow: hidden; margin: 6px 0 2px; }
-.barra-progreso-relleno { background: #2e7d32; height: 100%; }
+.barra-progreso-relleno { background: var(--verde); height: 100%; }
 
 .grid-tres-columnas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.panel-visitas-resumen { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+.panel-visitas-resumen .tabla-calendario { margin-top: 10px; margin-bottom: 0; }
 .columna-dashboard { background: #fff; border-radius: 8px; padding: 16px; }
 .lista-actividades, .lista-oportunidades-preview { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 8px; }
 .lista-actividades li, .lista-oportunidades-preview li { display: flex; flex-direction: column; gap: 2px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
@@ -180,7 +206,7 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
   padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;
 }
 
-.enlace-volver { display: inline-block; margin-bottom: 12px; color: #2e7d32; text-decoration: none; font-size: 14px; }
+.enlace-volver { display: inline-block; margin-bottom: 12px; color: var(--verde); text-decoration: none; font-size: 14px; }
 .enlace-volver:hover { text-decoration: underline; }
 .titulo-pagina { font-size: 20px; margin: 0 0 4px; }
 
@@ -210,7 +236,7 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
 .tarjeta-resumen-numero { margin: 4px 0 0; font-size: 26px; font-weight: 700; color: #1c1e21; }
 .numero-urgente { color: #c0392b; }
 .numero-caliente { color: #d35400; }
-.numero-exito { color: #2e7d32; }
+.numero-exito { color: var(--verde); }
 .numero-enfriandose { color: #1565c0; }
 
 .titulo-seccion { font-size: 16px; font-weight: 600; margin: 0 0 10px; }
@@ -238,7 +264,7 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
 .tarjeta-lead-titulo { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .tarjeta-lead-nombre { font-weight: 600; font-size: 15px; }
 .tarjeta-lead-motivo { margin: 0 0 8px; font-size: 13px; color: #555; }
-.tarjeta-lead-visita-ok { margin: 0 0 8px; font-size: 13px; color: #2e7d32; font-weight: 600; }
+.tarjeta-lead-visita-ok { margin: 0 0 8px; font-size: 13px; color: var(--verde); font-weight: 600; }
 .tarjeta-lead-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: #888; }
 .tarjeta-lead-acciones { display: flex; gap: 8px; flex-shrink: 0; }
 .tarjeta-lead-acciones .boton { padding: 8px 14px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; }

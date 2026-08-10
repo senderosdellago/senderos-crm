@@ -8,7 +8,8 @@
 </head>
 <body>
   <header class="encabezado">
-    <div>
+    <div class="encabezado-marca">
+      <img src="/img/logo-senderos.png" alt="Senderos del Lago" class="encabezado-logo" />
       <strong><%= productoActual.nombre %></strong>
       <span class="punto-conexion" id="estado-conexion" title="Conexión en tiempo real"></span>
     </div>
@@ -43,7 +44,7 @@
             <td><%= c.nombre || "(sin nombre)" %></td>
             <td><%= c.telefono %></td>
             <td><span class="etiqueta etiqueta-<%= c.clasificacion %>"><%= c.clasificacion %></span></td>
-            <td><%= c.etapa_nombre || "-" %></td>
+            <td><%= c.etapa_nombre || "-" %><%= c.etapa_porcentaje != null ? ` (${c.etapa_porcentaje}%)` : "" %></td>
             <td><%= c.asesor_nombre || "-" %></td>
             <td><%= c.visita_agendada ? "Agendada" : "-" %></td>
             <td>

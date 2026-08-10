@@ -280,6 +280,8 @@ router.get("/dashboard", async (req, res) => {
       metricas: datosTriage.metricas,
       misOportunidades: oportunidades.length,
       misOportunidadesLista: oportunidades,
+      visitasAgendadas: datosTriage.resumen.visitasAgendadas,
+      visitasPreview: datosTriage.visitasProximas.slice(0, 5),
       oportunidadesEnRiesgo: datosTriage.resumen.leadsEnfriandose,
       actividadesHoy: misTareasHoy,
       oportunidadesPreview: oportunidades.slice(0, 5),

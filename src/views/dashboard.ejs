@@ -8,7 +8,8 @@
 </head>
 <body>
   <header class="encabezado">
-    <div>
+    <div class="encabezado-marca">
+      <img src="/img/logo-senderos.png" alt="Senderos del Lago" class="encabezado-logo" />
       <strong><%= productoActual.nombre %></strong>
       <span class="punto-conexion" id="estado-conexion" title="Conexión en tiempo real"></span>
     </div>
@@ -29,6 +30,11 @@
     <p class="saludo-dashboard">¡Bienvenido, <%= usuario.nombre.split(" ")[0] %>! Aquí tienes un resumen de tu día.</p>
 
     <div class="grid-metricas-vendedor">
+      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/visitas?producto=<%= productoActual.slug %>">
+        <p class="tarjeta-resumen-etiqueta">Visitas Agendadas</p>
+        <p class="metrica-grande numero-exito"><%= visitasAgendadas %></p>
+        <p class="texto-discreto">Ver todas →</p>
+      </a>
       <div class="tarjeta-metrica">
         <p class="tarjeta-resumen-etiqueta">Mis Oportunidades</p>
         <p class="metrica-grande"><%= misOportunidades %></p>
@@ -56,6 +62,32 @@
         <% } %>
       </div>
     </div>
+
+    <section class="panel-visitas-resumen">
+      <div class="panel-tareas-encabezado">
+        <h2 class="titulo-seccion" style="margin:0">Próximas Visitas</h2>
+        <a class="enlace-volver" href="/dashboard/visitas?producto=<%= productoActual.slug %>">Ver todas →</a>
+      </div>
+      <table class="tabla-calendario">
+        <thead>
+          <tr><th>Cliente</th><th>Día</th><th>Fecha</th><th>Hora</th><% if (usuario.rol === "admin") { %><th>Asesor</th><% } %></tr>
+        </thead>
+        <tbody>
+          <% if (visitasPreview.length === 0) { %>
+            <tr><td colspan="5" class="texto-discreto">No hay visitas próximas agendadas.</td></tr>
+          <% } %>
+          <% visitasPreview.forEach((v) => { %>
+            <tr>
+              <td><a href="/conversacion/<%= productoActual.slug %>/<%= v.telefono %>"><%= v.nombre || v.telefono %></a></td>
+              <td><%= v.dia_semana %></td>
+              <td><%= v.fecha_visita_iso %></td>
+              <td><%= v.hora_visita_pendiente || "—" %></td>
+              <% if (usuario.rol === "admin") { %><td><%= v.asesor_nombre || "Sin asignar" %></td><% } %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
 
     <div class="grid-tres-columnas">
       <section class="columna-dashboard">
