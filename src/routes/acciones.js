@@ -8,6 +8,8 @@ import {
   guardarResultadoVisita,
   asignarAsesor,
   actualizarCampoOportunidad,
+  crearTarea,
+  completarTarea,
 } from "../db/crm.js";
 import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
 
@@ -231,6 +233,62 @@ router.post("/acciones/editar-campo", async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error("Error editando campo:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/acciones/tareas", async (req, res) => {
+  try {
+    const { producto: slug, telefono, concepto, fecha } = req.body;
+    if (!slug || !telefono || !concepto || !fecha) {
+      return res.status(400).json({ error: "Falta 'producto', 'telefono', 'concepto', o 'fecha'" });
+    }
+
+    const leadActual = await asegurarLeadCrm(slug, telefono);
+    const esAdmin = req.session.usuario.rol === "admin";
+    if (!esAdmin && leadActual.asesor_id !== req.session.usuario.id) {
+      return res.status(403).json({ error: "No autorizado — este lead no está asignado a ti" });
+    }
+
+    const tarea = await crearTarea(slug, telefono, concepto, fecha, req.session.usuario.id);
+    await registrarEvento(slug, telefono, "tarea_creada", {
+      por: req.session.usuario.nombre,
+      concepto,
+      fecha,
+    });
+    emitirNovedad(req, slug, telefono);
+    res.json({ ok: true, tarea });
+  } catch (error) {
+    console.error("Error creando tarea:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/acciones/tareas/:id/completar", async (req, res) => {
+  try {
+    const { producto: slug, telefono } = req.body;
+    const tareaId = Number(req.params.id);
+    if (!slug || !telefono || !tareaId) {
+      return res.status(400).json({ error: "Falta 'producto', 'telefono', o el id de la tarea" });
+    }
+
+    const leadActual = await asegurarLeadCrm(slug, telefono);
+    const esAdmin = req.session.usuario.rol === "admin";
+    if (!esAdmin && leadActual.asesor_id !== req.session.usuario.id) {
+      return res.status(403).json({ error: "No autorizado — este lead no está asignado a ti" });
+    }
+
+    const tarea = await completarTarea(slug, tareaId);
+    if (!tarea) return res.status(404).json({ error: "Tarea no encontrada" });
+
+    await registrarEvento(slug, tarea.telefono, "tarea_completada", {
+      por: req.session.usuario.nombre,
+      concepto: tarea.concepto,
+    });
+    emitirNovedad(req, slug, tarea.telefono);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error completando tarea:", error);
     res.status(500).json({ error: error.message });
   }
 });

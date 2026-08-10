@@ -5,7 +5,7 @@ import {
   listarVisitasAgendadas,
   obtenerMetricasConversion,
 } from "../db/productoDb.js";
-import { listarLeadsCrm, listarUsuariosActivos, listarEtapas } from "../db/crm.js";
+import { listarLeadsCrm, listarUsuariosActivos, listarEtapas, listarTareasPendientes } from "../db/crm.js";
 import { requiereLogin } from "../middleware/auth.js";
 
 const router = Router();
@@ -142,6 +142,16 @@ function categorizar(conversaciones) {
 // confirmar resultado" (la fecha ya pasó y todavía no se registró qué pasó
 // en el overlay del CRM). Cruza con leads_crm para saber el resultado y el
 // asesor a cargo.
+// Nombre del día de la semana en español a partir de una fecha YYYY-MM-DD,
+// calculado en la zona horaria de Colombia para que nunca quede desfasado
+// por un día (el riesgo clásico de convertir fechas-string a Date).
+function diaDeLaSemana(fechaISO) {
+  if (!fechaISO) return "";
+  const [anio, mes, dia] = fechaISO.split("-").map(Number);
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia, 12)); // mediodía UTC evita el borde del día
+  return fecha.toLocaleDateString("es-CO", { timeZone: "America/Bogota", weekday: "long" });
+}
+
 function organizarVisitas(visitas, mapaCrm, usuario) {
   const hoy = hoyISOColombia();
 
@@ -152,6 +162,7 @@ function organizarVisitas(visitas, mapaCrm, usuario) {
       visita_resultado: overlay?.visita_resultado || null,
       asesor_id: overlay?.asesor_id || null,
       asesor_nombre: overlay?.asesor_nombre || null,
+      dia_semana: diaDeLaSemana(v.fecha_visita_iso),
     };
   });
   const filtradas = filtrarPorAsesor(conAsesor, usuario);
@@ -377,6 +388,47 @@ router.get("/dashboard/oportunidades", async (req, res) => {
   } catch (error) {
     console.error("Error cargando oportunidades:", error);
     res.status(500).send("Error cargando las oportunidades");
+  }
+});
+
+// Tareas pendientes de todos los leads (filtradas por asesor si no es
+// admin), la más vencida primero — literal, porque ya vienen ordenadas por
+// fecha ascendente y estas son todas fecha <= hoy o futuras cercanas.
+router.get("/dashboard/tareas", async (req, res) => {
+  try {
+    const slug = req.query.producto || "senderos";
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).send("Producto no encontrado");
+
+    const [tareas, conversaciones] = await Promise.all([
+      listarTareasPendientes(slug),
+      listarConversacionesParaTriage(slug),
+    ]);
+    const mapaNombres = new Map(conversaciones.map((c) => [c.telefono, c.respuestas?.nombre]));
+
+    const hoy = hoyISOColombia();
+    const conNombre = tareas.map((t) => {
+      const fechaTarea = new Date(t.fecha).toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+      return {
+        ...t,
+        nombre: mapaNombres.get(t.telefono) || t.telefono,
+        vencida: fechaTarea < hoy,
+      };
+    });
+
+    const filtradas = filtrarPorAsesor(conNombre, req.session.usuario);
+    // Más vencida primero: fecha más antigua arriba (ya vienen ordenadas por
+    // fecha ASC desde la consulta, así que no hace falta reordenar).
+
+    res.render("dashboard-tareas", {
+      productos,
+      productoActual: producto,
+      usuario: req.session.usuario,
+      tareas: filtradas,
+    });
+  } catch (error) {
+    console.error("Error cargando tareas:", error);
+    res.status(500).send("Error cargando las tareas");
   }
 });
 

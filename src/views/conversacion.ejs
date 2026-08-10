@@ -24,7 +24,7 @@
       <% } %>
       <select id="selector-etapa" data-producto="<%= productoActual.slug %>" data-telefono="<%= telefono %>">
         <% etapas.forEach((e) => { %>
-          <option value="<%= e.id %>" <%= leadCrm.etapa_id === e.id ? "selected" : "" %>><%= e.nombre %></option>
+          <option value="<%= e.id %>" <%= leadCrm.etapa_id === e.id ? "selected" : "" %>><%= e.nombre %><%= e.porcentaje != null ? ` (${e.porcentaje}%)` : "" %></option>
         <% }) %>
       </select>
     </div>
@@ -51,6 +51,43 @@
         <textarea id="campo-notas" rows="2" placeholder="Ej: la llamé, no contestó, reintentar mañana en la tarde..."><%= leadCrm.notas || "" %></textarea>
         <button id="boton-guardar-notas" class="boton boton-secundario">Guardar nota</button>
         <span id="estado-notas" class="texto-discreto"></span>
+      </div>
+
+      <div class="panel-tareas">
+        <div class="panel-tareas-encabezado">
+          <span class="resumen-etiqueta">Tareas de este lead</span>
+          <button id="boton-abrir-tarea" class="boton boton-secundario">+ Próxima tarea</button>
+        </div>
+
+        <form id="form-tarea" class="form-tarea oculta">
+          <select id="selector-concepto-tarea">
+            <option value="Enviar propuesta económica">Enviar propuesta económica</option>
+            <option value="Enviar borrador promesa compraventa">Enviar borrador promesa compraventa</option>
+            <option value="Llamar nuevamente">Llamar nuevamente</option>
+            <option value="Enviar un mensaje de seguimiento">Enviar un mensaje de seguimiento</option>
+            <option value="Reagendar visita">Reagendar visita</option>
+            <option value="otro">Otro...</option>
+          </select>
+          <input type="text" id="campo-concepto-otro" placeholder="Describe la tarea..." class="oculta" />
+          <input type="date" id="campo-fecha-tarea" required />
+          <button type="submit" class="boton">Crear tarea</button>
+        </form>
+
+        <ul id="lista-tareas" class="lista-tareas">
+          <% tareas.forEach((t) => { %>
+            <li class="<%= t.completada ? 'tarea-completada' : '' %>" data-tarea-id="<%= t.id %>">
+              <span><%= t.concepto %> — <%= new Date(t.fecha).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "short" }) %></span>
+              <% if (!t.completada) { %>
+                <button class="boton-completar-tarea-inline" data-tarea-id="<%= t.id %>">Completada</button>
+              <% } else { %>
+                <span class="texto-discreto">✓ hecha</span>
+              <% } %>
+            </li>
+          <% }) %>
+          <% if (tareas.length === 0) { %>
+            <li class="texto-discreto">Sin tareas todavía.</li>
+          <% } %>
+        </ul>
       </div>
     </div>
 

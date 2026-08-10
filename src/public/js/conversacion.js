@@ -167,6 +167,67 @@ if (selectorAsesor) {
   });
 }
 
+const botonAbrirTarea = document.getElementById("boton-abrir-tarea");
+const formTarea = document.getElementById("form-tarea");
+if (botonAbrirTarea && formTarea) {
+  botonAbrirTarea.addEventListener("click", () => {
+    formTarea.classList.toggle("oculta");
+  });
+
+  const selectorConcepto = document.getElementById("selector-concepto-tarea");
+  const campoOtro = document.getElementById("campo-concepto-otro");
+  selectorConcepto.addEventListener("change", () => {
+    const esOtro = selectorConcepto.value === "otro";
+    campoOtro.classList.toggle("oculta", !esOtro);
+    if (esOtro) campoOtro.focus();
+  });
+
+  formTarea.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const concepto = selectorConcepto.value === "otro" ? campoOtro.value.trim() : selectorConcepto.value;
+    const fecha = document.getElementById("campo-fecha-tarea").value;
+    if (!concepto || !fecha) {
+      alert("Escribe el concepto de la tarea y elige una fecha.");
+      return;
+    }
+
+    const boton = formTarea.querySelector('button[type="submit"]');
+    boton.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/tareas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono: TELEFONO, concepto, fecha }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo crear la tarea");
+      window.location.reload();
+    } catch (error) {
+      alert(error.message);
+      boton.disabled = false;
+    }
+  });
+}
+
+document.addEventListener("click", async (evento) => {
+  const botonCompletar = evento.target.closest(".boton-completar-tarea-inline");
+  if (!botonCompletar) return;
+
+  const tareaId = botonCompletar.dataset.tareaId;
+  botonCompletar.disabled = true;
+  try {
+    const respuesta = await fetch(`/acciones/tareas/${tareaId}/completar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ producto: PRODUCTO, telefono: TELEFONO }),
+    });
+    if (!respuesta.ok) throw new Error("No se pudo completar la tarea");
+    window.location.reload();
+  } catch (error) {
+    alert(error.message);
+    botonCompletar.disabled = false;
+  }
+});
+
 const botonSugerir = document.getElementById("boton-sugerir");
 if (botonSugerir) {
   botonSugerir.addEventListener("click", async () => {

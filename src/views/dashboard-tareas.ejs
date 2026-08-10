@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tareas pendientes — <%= productoActual.nombre %></title>
+  <link rel="stylesheet" href="/css/estilos.css" />
+</head>
+<body>
+  <header class="encabezado">
+    <div><strong><%= productoActual.nombre %></strong></div>
+    <nav class="nav-principal">
+      <a href="/dashboard?producto=<%= productoActual.slug %>" class="activo">Dashboard</a>
+      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
+    </nav>
+    <div class="encabezado-usuario">
+      <span><%= usuario.nombre %></span>
+      <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>
+    </div>
+  </header>
+
+  <main class="contenedor-dashboard">
+    <a class="enlace-volver" href="/dashboard?producto=<%= productoActual.slug %>">← Volver al dashboard</a>
+    <h1 class="titulo-pagina">Tareas pendientes (<%= tareas.length %>)</h1>
+    <p class="texto-discreto">Las más vencidas aparecen primero.</p>
+
+    <table class="tabla-calendario">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Tarea</th>
+          <th>Fecha</th>
+          <% if (usuario.rol === "admin") { %><th>Asesor</th><% } %>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="cuerpo-tareas">
+        <% if (tareas.length === 0) { %>
+          <tr><td colspan="5" class="texto-discreto">No hay tareas pendientes 🎉</td></tr>
+        <% } %>
+        <% tareas.forEach((t) => { %>
+          <tr data-tarea-id="<%= t.id %>" data-telefono="<%= t.telefono %>">
+            <td><a href="/conversacion/<%= productoActual.slug %>/<%= t.telefono %>"><%= t.nombre %></a></td>
+            <td><%= t.concepto %></td>
+            <td class="<%= t.vencida ? 'texto-vencido' : '' %>"><%= new Date(t.fecha).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "short", year: "numeric" }) %><%= t.vencida ? " (vencida)" : "" %></td>
+            <% if (usuario.rol === "admin") { %><td><%= t.asesor_nombre || "Sin asignar" %></td><% } %>
+            <td>
+              <button class="boton boton-completar-tarea" data-tarea-id="<%= t.id %>" data-telefono="<%= t.telefono %>">Completada</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    const PRODUCTO = "<%= productoActual.slug %>";
+  </script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { productos, obtenerProducto } from "../config/productos.js";
 import { listarConversacionesProducto, obtenerConversacionProducto } from "../db/productoDb.js";
-import { listarEtapas, listarLeadsCrm, listarUsuariosActivos, asegurarLeadCrm } from "../db/crm.js";
+import { listarEtapas, listarLeadsCrm, listarUsuariosActivos, asegurarLeadCrm, listarTareasLead } from "../db/crm.js";
 
 const router = Router();
 
@@ -28,6 +28,7 @@ async function construirListaCombinada(slug, usuario) {
       ...c,
       etapa_nombre: overlay?.etapa_nombre || null,
       etapa_id: overlay?.etapa_id || null,
+      etapa_porcentaje: overlay?.etapa_porcentaje ?? null,
       asesor_id: overlay?.asesor_id || null,
       asesor_nombre: overlay?.asesor_nombre || null,
     };
@@ -86,11 +87,12 @@ router.get("/conversacion/:producto/:telefono", async (req, res) => {
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
-    const [conversacion, leadCrm, etapas, asesores] = await Promise.all([
+    const [conversacion, leadCrm, etapas, asesores, tareas] = await Promise.all([
       obtenerConversacionProducto(slug, telefono),
       asegurarLeadCrm(slug, telefono),
       listarEtapas(slug),
       listarUsuariosActivos(),
+      listarTareasLead(slug, telefono),
     ]);
 
     if (!conversacion) return res.status(404).send("Conversación no encontrada");
@@ -105,6 +107,7 @@ router.get("/conversacion/:producto/:telefono", async (req, res) => {
       leadCrm,
       etapas,
       asesores,
+      tareas,
       usuario: req.session.usuario,
     });
   } catch (error) {

@@ -36,6 +36,10 @@ function actualizarResumen(resumen) {
   const gridResumen = document.getElementById("grid-resumen");
   if (!gridResumen) return;
   gridResumen.innerHTML = `
+    <a class="tarjeta-resumen tarjeta-resumen-link" href="/dashboard/tareas?producto=${PRODUCTO}">
+      <p class="tarjeta-resumen-etiqueta">Tareas pendientes</p>
+      <p class="tarjeta-resumen-numero">Ver tareas →</p>
+    </a>
     <a class="tarjeta-resumen tarjeta-resumen-link" href="/dashboard/oportunidades?producto=${PRODUCTO}">
       <p class="tarjeta-resumen-etiqueta">Oportunidades activas</p>
       <p class="tarjeta-resumen-numero">Ver pipeline →</p>
@@ -117,6 +121,29 @@ document.addEventListener("click", async (evento) => {
     const telefono = botonAbrirReagendar.dataset.telefono;
     const filaForm = document.querySelector(`.fila-reagendar[data-telefono-form="${telefono}"]`);
     if (filaForm) filaForm.classList.toggle("oculta");
+    return;
+  }
+
+  // ============ Completar tarea (página /dashboard/tareas) ============
+  const botonCompletarTarea = evento.target.closest(".boton-completar-tarea");
+  if (botonCompletarTarea) {
+    const tareaId = botonCompletarTarea.dataset.tareaId;
+    const telefono = botonCompletarTarea.dataset.telefono;
+    const fila = botonCompletarTarea.closest("tr");
+    botonCompletarTarea.disabled = true;
+    try {
+      const respuesta = await fetch(`/acciones/tareas/${tareaId}/completar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo completar la tarea");
+      fila.remove();
+    } catch (error) {
+      console.error("Error completando tarea:", error);
+      botonCompletarTarea.disabled = false;
+      alert("No se pudo completar. Intenta de nuevo.");
+    }
   }
 });
 

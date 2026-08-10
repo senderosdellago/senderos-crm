@@ -37,7 +37,7 @@
         <% visitasProximas.forEach((v) => { %>
           <tr data-telefono="<%= v.telefono %>">
             <td><%= v.nombre || v.telefono %></td>
-            <td><%= v.fecha_visita_iso %></td>
+            <td><%= v.dia_semana %>, <%= v.fecha_visita_iso %></td>
             <td><%= v.hora_visita_pendiente || "—" %></td>
             <td><%= v.asesor_nombre || "Sin asignar" %></td>
             <td class="celda-acciones">
@@ -70,7 +70,7 @@
         <% visitasPorConfirmar.forEach((v) => { %>
           <tr data-telefono="<%= v.telefono %>">
             <td><%= v.nombre || v.telefono %></td>
-            <td><%= v.fecha_visita_iso %></td>
+            <td><%= v.dia_semana %>, <%= v.fecha_visita_iso %></td>
             <td><%= v.hora_visita_pendiente || "—" %></td>
             <td><%= v.asesor_nombre || "Sin asignar" %></td>
             <td class="celda-acciones">

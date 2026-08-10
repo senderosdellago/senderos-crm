@@ -95,6 +95,21 @@ export async function asegurarEsquema() {
     CREATE INDEX IF NOT EXISTS idx_session_expire ON session(expire);
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tareas (
+      id SERIAL PRIMARY KEY,
+      producto TEXT NOT NULL,
+      telefono TEXT NOT NULL,
+      concepto TEXT NOT NULL,
+      fecha DATE NOT NULL,
+      completada BOOLEAN NOT NULL DEFAULT false,
+      completada_en TIMESTAMPTZ,
+      creado_por_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_tareas_pendientes ON tareas (producto, completada, fecha);`);
+
   await sembrarEtapasIniciales();
   await migrarEtapasV2();
 
@@ -355,6 +370,57 @@ export async function actualizarCampoOportunidad(producto, telefono, campo, valo
     `UPDATE leads_crm SET ${columna} = $1, actualizado_en = now() WHERE producto = $2 AND telefono = $3`,
     [valor, producto, telefono]
   );
+}
+
+export async function crearTarea(producto, telefono, concepto, fecha, creadoPorId) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `INSERT INTO tareas (producto, telefono, concepto, fecha, creado_por_id)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [producto, telefono, concepto, fecha, creadoPorId || null]
+  );
+  return resultado.rows[0];
+}
+
+export async function listarTareasLead(producto, telefono) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `SELECT t.*, u.nombre AS creado_por_nombre
+     FROM tareas t
+     LEFT JOIN usuarios u ON u.id = t.creado_por_id
+     WHERE t.producto = $1 AND t.telefono = $2
+     ORDER BY t.completada ASC, t.fecha ASC`,
+    [producto, telefono]
+  );
+  return resultado.rows;
+}
+
+// Todas las tareas pendientes (sin completar) de un producto, con el nombre
+// del cliente resuelto — la usa el dashboard de tareas del asesor. El
+// filtro por asesor (solo ver las suyas si no es admin) se aplica afuera,
+// en la ruta, igual que con leads y visitas.
+export async function listarTareasPendientes(producto) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `SELECT t.*, lc.asesor_id, u.nombre AS asesor_nombre
+     FROM tareas t
+     LEFT JOIN leads_crm lc ON lc.producto = t.producto AND lc.telefono = t.telefono
+     LEFT JOIN usuarios u ON u.id = lc.asesor_id
+     WHERE t.producto = $1 AND t.completada = false
+     ORDER BY t.fecha ASC`,
+    [producto]
+  );
+  return resultado.rows;
+}
+
+export async function completarTarea(producto, tareaId) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `UPDATE tareas SET completada = true, completada_en = now()
+     WHERE producto = $1 AND id = $2 RETURNING *`,
+    [producto, tareaId]
+  );
+  return resultado.rows[0] || null;
 }
 
 export async function listarLeadsCrm(producto) {
