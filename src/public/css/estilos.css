@@ -222,7 +222,11 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
 .resumen-etiqueta { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
 
 .tabla-calendario { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.filtro-etapa-contenedor { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 14px; }
+.filtro-etapa-contenedor select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; }
 .tabla-calendario th, .tabla-calendario td { padding: 10px 14px; text-align: left; font-size: 14px; border-bottom: 1px solid #f0f0f0; }
+.campo-nombre-visita { border: 1px solid transparent; background: transparent; font-size: 14px; padding: 4px 6px; border-radius: 6px; width: 100%; }
+.campo-nombre-visita:hover, .campo-nombre-visita:focus { border-color: #ccc; background: #fff; }
 .texto-vencido { color: #c0392b; font-weight: 600; }
 .tabla-calendario th { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
 .celda-acciones { display: flex; gap: 6px; flex-wrap: wrap; }

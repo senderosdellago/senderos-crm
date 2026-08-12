@@ -34,24 +34,28 @@ router.post("/webhook/:producto", async (req, res) => {
     // que el comercial ya movió más adelante a mano (ver avanzarEtapaSiCorresponde).
     try {
       const conversacion = await obtenerConversacionProducto(slug, telefono);
-      if (conversacion) {
-        if (conversacion.no_contactar) {
-          await establecerEtapaEspecial(slug, telefono, "No contactar");
-        } else if (conversacion.en_remarketing) {
-          await establecerEtapaEspecial(slug, telefono, "Remarketing");
-        } else {
-          if ((conversacion.historial || []).length > 0) {
-            await avanzarEtapaSiCorresponde(slug, telefono, "Contacto");
-          }
-          if (conversacion.visita_agendada) {
-            await avanzarEtapaSiCorresponde(slug, telefono, "Visita agendada");
-          }
+      if (!conversacion) {
+        console.log(`[Webhook] ${telefono}: no se encontró la conversación en la base del bot todavía.`);
+      } else if (conversacion.no_contactar) {
+        await establecerEtapaEspecial(slug, telefono, "No contactar");
+        console.log(`[Webhook] ${telefono}: marcado como No contactar.`);
+      } else if (conversacion.en_remarketing) {
+        await establecerEtapaEspecial(slug, telefono, "Remarketing");
+        console.log(`[Webhook] ${telefono}: marcado como Remarketing.`);
+      } else {
+        if ((conversacion.historial || []).length > 0) {
+          const avanzoContacto = await avanzarEtapaSiCorresponde(slug, telefono, "Contacto");
+          if (avanzoContacto) console.log(`[Webhook] ${telefono}: etapa avanzada a Contacto.`);
+        }
+        if (conversacion.visita_agendada) {
+          const avanzoVisita = await avanzarEtapaSiCorresponde(slug, telefono, "Visita agendada");
+          if (avanzoVisita) console.log(`[Webhook] ${telefono}: etapa avanzada a Visita agendada.`);
         }
       }
     } catch (errorEtapa) {
       // Un fallo acá NUNCA debe tumbar el webhook — en el peor caso, el
       // comercial mueve la etapa a mano, que es lo que ya hacía antes.
-      console.error("Error avanzando etapa automática:", errorEtapa);
+      console.error(`[Webhook] Error avanzando etapa automática de ${telefono}:`, errorEtapa);
     }
 
     // Avisa a todos los navegadores conectados a este producto, en vivo.

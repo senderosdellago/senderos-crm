@@ -165,6 +165,7 @@ function organizarVisitas(visitas, mapaCrm, usuario) {
     const overlay = mapaCrm.get(v.telefono);
     return {
       ...v,
+      nombre: overlay?.nombre_override || v.nombre,
       visita_resultado: overlay?.visita_resultado || null,
       asesor_id: overlay?.asesor_id || null,
       asesor_nombre: overlay?.asesor_nombre || null,
@@ -417,12 +418,21 @@ router.get("/dashboard/oportunidades", async (req, res) => {
       (e) => e.nombre !== "Remarketing" && e.nombre !== "No contactar"
     );
 
+    // Conteo de cuántas oportunidades hay en cada etapa — para el filtro y
+    // el resumen de arriba de la tabla.
+    const conteoPorEtapa = {};
+    for (const e of etapasSeleccionables) conteoPorEtapa[e.nombre] = 0;
+    for (const o of oportunidades) {
+      if (conteoPorEtapa[o.etapa_nombre] != null) conteoPorEtapa[o.etapa_nombre]++;
+    }
+
     res.render("dashboard-oportunidades", {
       productos,
       productoActual: producto,
       usuario: req.session.usuario,
       oportunidades,
       etapas: etapasSeleccionables,
+      conteoPorEtapa,
     });
   } catch (error) {
     console.error("Error cargando oportunidades:", error);

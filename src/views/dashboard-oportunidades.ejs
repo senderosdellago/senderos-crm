@@ -27,6 +27,17 @@
     <h1 class="titulo-pagina">Oportunidades Activas (<%= oportunidades.length %>)</h1>
     <p class="texto-discreto">Haz clic sobre la etapa o el valor para editarlos. Remarketing y No contactar no aparecen aquí — ya no son oportunidades activas.</p>
 
+    <div class="filtro-etapa-contenedor">
+      <label for="filtro-etapa">Filtrar por etapa:</label>
+      <select id="filtro-etapa">
+        <option value="">Todas (<%= oportunidades.length %>)</option>
+        <% etapas.forEach((e) => { %>
+          <option value="<%= e.nombre %>"><%= e.nombre %> (<%= conteoPorEtapa[e.nombre] || 0 %>)</option>
+        <% }) %>
+      </select>
+      <span id="contador-filtro" class="texto-discreto"></span>
+    </div>
+
     <table class="tabla-calendario">
       <thead>
         <tr>
@@ -42,7 +53,7 @@
           <tr><td colspan="5" class="texto-discreto">No hay oportunidades activas por ahora.</td></tr>
         <% } %>
         <% oportunidades.forEach((o) => { %>
-          <tr data-telefono="<%= o.telefono %>">
+          <tr data-telefono="<%= o.telefono %>" data-etapa="<%= o.etapa_nombre %>">
             <td><a href="/conversacion/<%= productoActual.slug %>/<%= o.telefono %>"><%= o.nombre %></a></td>
             <td>
               <select class="selector-etapa-inline" data-telefono="<%= o.telefono %>">

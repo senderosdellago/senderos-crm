@@ -29,15 +29,16 @@
     <h2 class="titulo-seccion">Próximas (<%= visitasProximas.length %>)</h2>
     <table class="tabla-calendario">
       <thead>
-        <tr><th>Cliente</th><th>Fecha</th><th>Hora</th><th>Asesor</th><th></th></tr>
+        <tr><th>Nombre</th><th>Teléfono</th><th>Fecha</th><th>Hora</th><th>Asesor</th><th></th></tr>
       </thead>
       <tbody>
         <% if (visitasProximas.length === 0) { %>
-          <tr><td colspan="5" class="texto-discreto">No hay visitas próximas.</td></tr>
+          <tr><td colspan="6" class="texto-discreto">No hay visitas próximas.</td></tr>
         <% } %>
         <% visitasProximas.forEach((v) => { %>
           <tr data-telefono="<%= v.telefono %>">
-            <td><%= v.nombre || v.telefono %></td>
+            <td><input type="text" class="campo-nombre-visita" data-telefono="<%= v.telefono %>" value="<%= v.nombre || '' %>" placeholder="Sin nombre" /></td>
+            <td><%= v.telefono %></td>
             <td><%= v.dia_semana %>, <%= v.fecha_visita_iso %></td>
             <td><%= v.hora_visita_pendiente || "—" %></td>
             <td><%= v.asesor_nombre || "Sin asignar" %></td>
@@ -47,7 +48,7 @@
             </td>
           </tr>
           <tr class="fila-reagendar oculta" data-telefono-form="<%= v.telefono %>">
-            <td colspan="5">
+            <td colspan="6">
               <form class="form-reagendar" data-telefono="<%= v.telefono %>">
                 <label>Fecha <input type="date" name="fechaISO" required /></label>
                 <label>Hora <input type="text" name="hora" placeholder="ej. 10:00 a.m." required /></label>
@@ -62,15 +63,16 @@
     <h2 class="titulo-seccion" style="margin-top:28px">Para confirmar resultado (<%= visitasPorConfirmar.length %>)</h2>
     <table class="tabla-calendario">
       <thead>
-        <tr><th>Cliente</th><th>Fecha</th><th>Hora</th><th>Asesor</th><th></th></tr>
+        <tr><th>Nombre</th><th>Teléfono</th><th>Fecha</th><th>Hora</th><th>Asesor</th><th></th></tr>
       </thead>
       <tbody>
         <% if (visitasPorConfirmar.length === 0) { %>
-          <tr><td colspan="5" class="texto-discreto">No hay visitas pendientes de confirmar.</td></tr>
+          <tr><td colspan="6" class="texto-discreto">No hay visitas pendientes de confirmar.</td></tr>
         <% } %>
         <% visitasPorConfirmar.forEach((v) => { %>
           <tr data-telefono="<%= v.telefono %>">
-            <td><%= v.nombre || v.telefono %></td>
+            <td><input type="text" class="campo-nombre-visita" data-telefono="<%= v.telefono %>" value="<%= v.nombre || '' %>" placeholder="Sin nombre" /></td>
+            <td><%= v.telefono %></td>
             <td><%= v.dia_semana %>, <%= v.fecha_visita_iso %></td>
             <td><%= v.hora_visita_pendiente || "—" %></td>
             <td><%= v.asesor_nombre || "Sin asignar" %></td>
@@ -81,7 +83,7 @@
             </td>
           </tr>
           <tr class="fila-reagendar oculta" data-telefono-form="<%= v.telefono %>">
-            <td colspan="5">
+            <td colspan="6">
               <form class="form-reagendar" data-telefono="<%= v.telefono %>">
                 <label>Fecha <input type="date" name="fechaISO" required /></label>
                 <label>Hora <input type="text" name="hora" placeholder="ej. 10:00 a.m." required /></label>

@@ -218,6 +218,27 @@ document.addEventListener("click", async (evento) => {
   }
 });
 
+// ============ Filtro por etapa (página /dashboard/oportunidades) ============
+const filtroEtapa = document.getElementById("filtro-etapa");
+if (filtroEtapa) {
+  const filas = () => document.querySelectorAll("#cuerpo-oportunidades tr[data-etapa]");
+  const contador = document.getElementById("contador-filtro");
+
+  const aplicarFiltro = () => {
+    const etapaElegida = filtroEtapa.value;
+    let visibles = 0;
+    filas().forEach((fila) => {
+      const coincide = !etapaElegida || fila.dataset.etapa === etapaElegida;
+      fila.style.display = coincide ? "" : "none";
+      if (coincide) visibles++;
+    });
+    contador.textContent = etapaElegida ? `Mostrando ${visibles}` : "";
+  };
+
+  filtroEtapa.addEventListener("change", aplicarFiltro);
+  aplicarFiltro();
+}
+
 // ============ Selector de etapa en línea (página /dashboard/oportunidades) ============
 document.addEventListener("change", async (evento) => {
   const selector = evento.target.closest(".selector-etapa-inline");
@@ -233,6 +254,10 @@ document.addEventListener("change", async (evento) => {
       });
       if (!respuesta.ok) throw new Error("No se pudo guardar la etapa");
       selector.dataset.valorAnterior = selector.value;
+      const fila = selector.closest("tr[data-etapa]");
+      if (fila) {
+        fila.dataset.etapa = selector.options[selector.selectedIndex].text.replace(/\s*\(\d+%\)\s*$/, "").trim();
+      }
     } catch (error) {
       console.error("Error guardando etapa:", error);
       selector.value = etapaIdAnterior;
@@ -271,6 +296,38 @@ document.addEventListener(
       console.error("Error guardando meta mensual:", error);
       campo.value = valorAnterior;
       alert("No se pudo guardar la meta. Intenta de nuevo.");
+    } finally {
+      campo.disabled = false;
+    }
+  },
+  true
+);
+
+// ============ Nombre editable (página /dashboard/visitas) ============
+document.addEventListener(
+  "blur",
+  async (evento) => {
+    const campo = evento.target.closest?.(".campo-nombre-visita");
+    if (!campo) return;
+
+    const telefono = campo.dataset.telefono;
+    const valorAnterior = campo.dataset.valorAnterior ?? campo.defaultValue;
+    const valorNuevo = campo.value.trim();
+    if (valorNuevo === (campo.dataset.valorAnterior ?? campo.defaultValue)) return;
+
+    campo.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/editar-campo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono, campo: "nombre_override", valor: valorNuevo || null }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo guardar el nombre");
+      campo.dataset.valorAnterior = valorNuevo;
+    } catch (error) {
+      console.error("Error guardando nombre:", error);
+      campo.value = valorAnterior;
+      alert("No se pudo guardar el nombre. Intenta de nuevo.");
     } finally {
       campo.disabled = false;
     }

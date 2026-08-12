@@ -146,6 +146,37 @@ if (selectorEtapa) {
   });
 }
 
+const campoValorVenta = document.getElementById("campo-valor-venta-conversacion");
+if (campoValorVenta) {
+  campoValorVenta.addEventListener("blur", async () => {
+    const valorAnterior = campoValorVenta.dataset.valorAnterior ?? campoValorVenta.defaultValue;
+    const valorNuevo = campoValorVenta.value.trim();
+    if (valorNuevo === (campoValorVenta.dataset.valorAnterior ?? campoValorVenta.defaultValue)) return;
+
+    campoValorVenta.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/editar-campo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          producto: PRODUCTO,
+          telefono: TELEFONO,
+          campo: "valor_venta",
+          valor: valorNuevo === "" ? null : Number(valorNuevo.replace(/[^\d.]/g, "")),
+        }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo guardar el valor");
+      campoValorVenta.dataset.valorAnterior = valorNuevo;
+    } catch (error) {
+      console.error("Error guardando valor de venta:", error);
+      campoValorVenta.value = valorAnterior;
+      alert("No se pudo guardar el valor. Intenta de nuevo.");
+    } finally {
+      campoValorVenta.disabled = false;
+    }
+  });
+}
+
 const selectorAsesor = document.getElementById("selector-asesor");
 if (selectorAsesor) {
   selectorAsesor.addEventListener("change", async () => {

@@ -40,6 +40,10 @@
       <div><span class="resumen-etiqueta">Tiempo de decisión</span><span><%= conversacion.respuestas?.tiempo || "No especificado" %></span></div>
       <div><span class="resumen-etiqueta">Visita</span><span><%= conversacion.visita_agendada ? `Agendada — ${conversacion.fecha_visita_iso} ${conversacion.hora_visita_pendiente || ""}` : "No agendada" %></span></div>
       <div><span class="resumen-etiqueta">Asesor a cargo</span><span><%= leadCrm.asesor_id ? (asesores.find((a) => a.id === leadCrm.asesor_id)?.nombre || "—") : "Sin asignar" %></span></div>
+      <div>
+        <span class="resumen-etiqueta">Valor de venta</span>
+        <input type="text" id="campo-valor-venta-conversacion" class="campo-valor-venta" data-telefono="<%= telefono %>" value="<%= leadCrm.valor_venta || "" %>" placeholder="$ —" />
+      </div>
     </div>
 
     <div class="panel-herramientas">
