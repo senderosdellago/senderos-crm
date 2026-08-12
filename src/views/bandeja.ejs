@@ -42,7 +42,7 @@
       <tbody id="cuerpo-bandeja">
         <% conversaciones.forEach((c) => { %>
           <tr data-telefono="<%= c.telefono %>">
-            <td><%= c.nombre || "(sin nombre)" %></td>
+            <td><input type="text" class="campo-nombre-editable" data-telefono="<%= c.telefono %>" value="<%= c.nombre || '' %>" placeholder="Sin nombre" /></td>
             <td><%= c.telefono %></td>
             <td><span class="etiqueta etiqueta-<%= c.clasificacion %>"><%= c.clasificacion %></span></td>
             <td><%= c.etapa_nombre || "-" %><%= c.etapa_porcentaje != null ? ` (${c.etapa_porcentaje}%)` : "" %></td>

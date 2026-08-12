@@ -23,17 +23,26 @@ socket.on("novedad", async () => {
   }
 });
 
+function escaparHtml(texto) {
+  const div = document.createElement("div");
+  div.textContent = texto ?? "";
+  return div.innerHTML;
+}
+function escaparAtributo(texto) {
+  return escaparHtml(texto).replace(/"/g, "&quot;");
+}
+
 function actualizarTabla(conversaciones) {
   const cuerpo = document.getElementById("cuerpo-bandeja");
   cuerpo.innerHTML = conversaciones
     .map((c) => {
       const estado = c.intervencion_humana
-        ? `<span class="etiqueta etiqueta-intervenida">Con asesor${c.intervenido_por ? ` (${c.intervenido_por})` : ""}</span>`
+        ? `<span class="etiqueta etiqueta-intervenida">Con asesor${c.intervenido_por ? ` (${escaparHtml(c.intervenido_por)})` : ""}</span>`
         : `<span class="etiqueta etiqueta-bot">Paola (bot)</span>`;
       const fecha = new Date(c.actualizado_en).toLocaleString("es-CO", { timeZone: "America/Bogota" });
       return `
         <tr data-telefono="${c.telefono}">
-          <td>${c.nombre || "(sin nombre)"}</td>
+          <td><input type="text" class="campo-nombre-editable" data-telefono="${c.telefono}" value="${escaparAtributo(c.nombre)}" placeholder="Sin nombre" /></td>
           <td>${c.telefono}</td>
           <td><span class="etiqueta etiqueta-${c.clasificacion}">${c.clasificacion}</span></td>
           <td>${c.etapa_nombre || "-"}${c.etapa_porcentaje != null ? ` (${c.etapa_porcentaje}%)` : ""}</td>
@@ -47,3 +56,35 @@ function actualizarTabla(conversaciones) {
     })
     .join("");
 }
+
+// ============ Nombre editable (funciona tanto en la carga inicial como en las filas que se refrescan solas) ============
+document.addEventListener(
+  "blur",
+  async (evento) => {
+    const campo = evento.target.closest?.(".campo-nombre-editable");
+    if (!campo) return;
+
+    const telefono = campo.dataset.telefono;
+    const valorAnterior = campo.dataset.valorAnterior ?? campo.defaultValue;
+    const valorNuevo = campo.value.trim();
+    if (valorNuevo === (campo.dataset.valorAnterior ?? campo.defaultValue)) return;
+
+    campo.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/editar-campo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono, campo: "nombre_override", valor: valorNuevo || null }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo guardar el nombre");
+      campo.dataset.valorAnterior = valorNuevo;
+    } catch (error) {
+      console.error("Error guardando nombre:", error);
+      campo.value = valorAnterior;
+      alert("No se pudo guardar el nombre. Intenta de nuevo.");
+    } finally {
+      campo.disabled = false;
+    }
+  },
+  true
+);

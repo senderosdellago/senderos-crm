@@ -30,12 +30,24 @@
     </div>
     <p class="texto-discreto">Arrastra una tarjeta a otra columna para cambiar su etapa.</p>
 
+    <% if (usuario.rol === "admin") { %>
+      <div class="filtro-etapa-contenedor">
+        <label for="filtro-asesor-embudo">Ver leads de:</label>
+        <select id="filtro-asesor-embudo" onchange="window.location.href = '/dashboard/embudo?producto=<%= productoActual.slug %>&asesor=' + this.value">
+          <option value="todos" <%= asesorFiltro === "todos" ? "selected" : "" %>>Todos</option>
+          <% usuariosActivos.forEach((u) => { %>
+            <option value="<%= u.id %>" <%= asesorFiltro === String(u.id) ? "selected" : "" %>><%= u.nombre %></option>
+          <% }) %>
+        </select>
+      </div>
+    <% } %>
+
     <div class="tablero-embudo">
       <% columnas.forEach((col) => { %>
         <div class="columna-embudo" data-etapa-id="<%= col.id %>" data-etapa-nombre="<%= col.nombre %>">
           <div class="columna-embudo-encabezado">
             <strong><%= col.nombre %></strong>
-            <span class="texto-discreto"><%= col.leads.length %> lead<%= col.leads.length === 1 ? "" : "s" %><% if (col.totalValor > 0) { %> · $<%= col.totalValor.toLocaleString("es-CO") %><% } %></span>
+            <span class="texto-discreto"><%= col.leads.length %> lead<%= col.leads.length === 1 ? "" : "s" %> · <%= col.porcentajeDelTotal %>%<% if (col.totalValor > 0) { %> · $<%= col.totalValor.toLocaleString("es-CO") %><% } %></span>
           </div>
           <div class="columna-embudo-cuerpo">
             <% if (col.leads.length === 0) { %>
@@ -43,15 +55,14 @@
             <% } %>
             <% col.leads.forEach((lead) => { %>
               <div class="tarjeta-embudo" draggable="true" data-telefono="<%= lead.telefono %>">
-                <div class="tarjeta-embudo-avatar"><%= (lead.nombre || "?").trim().charAt(0).toUpperCase() %></div>
                 <div class="tarjeta-embudo-info">
-                  <div class="tarjeta-embudo-nombre"><%= lead.nombre %></div>
-                  <% if (lead.ultimo_mensaje) { %>
-                    <div class="tarjeta-embudo-mensaje"><%= lead.ultimo_mensaje_es_del_cliente ? "" : "Tú: " %><%= lead.ultimo_mensaje.length > 45 ? lead.ultimo_mensaje.substring(0, 45) + "…" : lead.ultimo_mensaje %></div>
-                  <% } %>
-                  <div class="tarjeta-embudo-meta">
-                    <span class="texto-discreto"><%= lead.tiempoTexto %></span>
+                  <div class="tarjeta-embudo-linea1">
+                    <input type="text" class="campo-nombre-editable tarjeta-embudo-nombre" data-telefono="<%= lead.telefono %>" value="<%= lead.nombre || '' %>" placeholder="Sin nombre" onmousedown="event.stopPropagation()" />
                     <a href="/conversacion/<%= productoActual.slug %>/<%= lead.telefono %>" class="tarjeta-embudo-link" title="Ver conversación">💬</a>
+                  </div>
+                  <div class="tarjeta-embudo-linea2">
+                    <span><%= lead.telefono %></span>
+                    <span><%= lead.valor_venta ? "$" + lead.valor_venta.toLocaleString("es-CO") : "Sin valor" %></span>
                   </div>
                 </div>
               </div>

@@ -26,6 +26,7 @@ async function construirListaCombinada(slug, usuario) {
     const overlay = mapaCrm.get(c.telefono);
     return {
       ...c,
+      nombre: overlay?.nombre_override || c.nombre,
       etapa_nombre: overlay?.etapa_nombre || null,
       etapa_id: overlay?.etapa_id || null,
       etapa_porcentaje: overlay?.etapa_porcentaje ?? null,

@@ -4,7 +4,6 @@ import {
   listarConversacionesParaTriage,
   listarVisitasAgendadas,
   obtenerMetricasConversion,
-  listarUltimosMensajes,
 } from "../db/productoDb.js";
 import {
   listarLeadsCrm,
@@ -514,40 +513,47 @@ router.get("/dashboard/embudo", async (req, res) => {
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
-    const [oportunidades, etapas, ultimosMensajes] = await Promise.all([
-      obtenerOportunidades(slug, req.session.usuario),
+    const usuario = req.session.usuario;
+    let [oportunidades, etapas, usuariosActivos] = await Promise.all([
+      obtenerOportunidades(slug, usuario),
       listarEtapas(slug),
-      listarUltimosMensajes(slug),
+      usuario.rol === "admin" ? listarUsuariosActivos() : Promise.resolve([]),
     ]);
-    const mapaMensajes = new Map(ultimosMensajes.map((m) => [m.telefono, m]));
+
+    // Filtro por persona: SOLO un admin puede elegir ver a alguien más — un
+    // asesor ya está limitado a lo suyo desde obtenerOportunidades, así que
+    // este filtro adicional no aplica para él.
+    const asesorFiltro = req.query.asesor || "todos";
+    if (usuario.rol === "admin" && asesorFiltro !== "todos") {
+      oportunidades = oportunidades.filter((o) => String(o.asesor_id) === asesorFiltro);
+    }
+
     const etapasSeleccionables = etapas.filter(
       (e) => e.nombre !== "Remarketing" && e.nombre !== "No contactar"
     );
+    const totalLeads = oportunidades.length;
 
-    // Agrupa las oportunidades por etapa, y calcula el total de valor de
-    // venta por columna (lo que se ve en el encabezado, como en el mockup).
+    // Agrupa las oportunidades por etapa. El porcentaje aquí es DINÁMICO
+    // (leads en esta etapa ÷ total de leads del filtro actual) — distinto
+    // del porcentaje fijo de "probabilidad de cierre" que se usa en
+    // Oportunidades Activas y en Cierres Esperados.
     const columnas = etapasSeleccionables.map((etapa) => {
       const leads = oportunidades
         .filter((o) => o.etapa_nombre === etapa.nombre)
-        .map((o) => {
-          const mensaje = mapaMensajes.get(o.telefono);
-          return {
-            ...o,
-            ultimo_mensaje: mensaje?.ultimo_mensaje || null,
-            ultimo_mensaje_es_del_cliente: mensaje?.ultimo_rol === "user",
-            tiempoTexto: tiempoRelativo(o.ultimo_contacto),
-          };
-        });
+        .map((o) => ({ ...o, tiempoTexto: tiempoRelativo(o.ultimo_contacto) }));
       const totalValor = leads.reduce((suma, l) => suma + (l.valor_venta || 0), 0);
-      return { ...etapa, leads, totalValor };
+      const porcentajeDelTotal = totalLeads > 0 ? Math.round((leads.length / totalLeads) * 100) : 0;
+      return { ...etapa, leads, totalValor, porcentajeDelTotal };
     });
 
     res.render("dashboard-embudo", {
       productos,
       productoActual: producto,
-      usuario: req.session.usuario,
+      usuario,
       columnas,
       etapas: etapasSeleccionables,
+      usuariosActivos,
+      asesorFiltro,
     });
   } catch (error) {
     console.error("Error cargando embudo:", error);

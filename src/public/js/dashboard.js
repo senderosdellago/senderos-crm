@@ -389,7 +389,7 @@ document.addEventListener(
 document.addEventListener(
   "blur",
   async (evento) => {
-    const campo = evento.target.closest?.(".campo-nombre-visita");
+    const campo = evento.target.closest?.(".campo-nombre-editable");
     if (!campo) return;
 
     const telefono = campo.dataset.telefono;

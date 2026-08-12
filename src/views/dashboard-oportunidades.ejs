@@ -42,7 +42,8 @@
     <table class="tabla-calendario">
       <thead>
         <tr>
-          <th>Cliente</th>
+          <th>Nombre</th>
+          <th>Teléfono</th>
           <th>Etapa</th>
           <% if (usuario.rol === "admin") { %><th>Asesor</th><% } %>
           <th>Último contacto</th>
@@ -51,11 +52,12 @@
       </thead>
       <tbody id="cuerpo-oportunidades">
         <% if (oportunidades.length === 0) { %>
-          <tr><td colspan="5" class="texto-discreto">No hay oportunidades activas por ahora.</td></tr>
+          <tr><td colspan="6" class="texto-discreto">No hay oportunidades activas por ahora.</td></tr>
         <% } %>
         <% oportunidades.forEach((o) => { %>
           <tr data-telefono="<%= o.telefono %>" data-etapa="<%= o.etapa_nombre %>">
-            <td><a href="/conversacion/<%= productoActual.slug %>/<%= o.telefono %>"><%= o.nombre %></a></td>
+            <td><input type="text" class="campo-nombre-editable" data-telefono="<%= o.telefono %>" value="<%= o.nombre || '' %>" placeholder="Sin nombre" /></td>
+            <td><a href="/conversacion/<%= productoActual.slug %>/<%= o.telefono %>"><%= o.telefono %></a></td>
             <td>
               <select class="selector-etapa-inline" data-telefono="<%= o.telefono %>">
                 <% etapas.forEach((e) => { %>
