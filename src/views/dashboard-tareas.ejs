@@ -11,6 +11,7 @@
     <div class="encabezado-marca"><img src="/img/logo-senderos.png" alt="Senderos del Lago" class="encabezado-logo" /><strong><%= productoActual.nombre %></strong></div>
     <nav class="nav-principal">
       <a href="/dashboard?producto=<%= productoActual.slug %>" class="activo">Dashboard</a>
+      <a href="/dashboard/embudo?producto=<%= productoActual.slug %>">Embudo</a>
       <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
     </nav>
     <div class="encabezado-usuario">

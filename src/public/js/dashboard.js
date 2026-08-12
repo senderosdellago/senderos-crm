@@ -239,6 +239,88 @@ if (filtroEtapa) {
   aplicarFiltro();
 }
 
+// ============ Arrastrar y soltar (página /dashboard/embudo) ============
+const columnasEmbudo = document.querySelectorAll(".columna-embudo");
+if (columnasEmbudo.length > 0) {
+  let tarjetaArrastrada = null;
+
+  document.querySelectorAll(".tarjeta-embudo").forEach((tarjeta) => {
+    tarjeta.addEventListener("dragstart", () => {
+      tarjetaArrastrada = tarjeta;
+      tarjeta.classList.add("arrastrando");
+    });
+    tarjeta.addEventListener("dragend", () => {
+      tarjeta.classList.remove("arrastrando");
+      tarjetaArrastrada = null;
+    });
+  });
+
+  columnasEmbudo.forEach((columna) => {
+    const cuerpo = columna.querySelector(".columna-embudo-cuerpo");
+
+    columna.addEventListener("dragover", (evento) => {
+      evento.preventDefault();
+      columna.classList.add("arrastrando-encima");
+    });
+    columna.addEventListener("dragleave", () => columna.classList.remove("arrastrando-encima"));
+
+    columna.addEventListener("drop", async (evento) => {
+      evento.preventDefault();
+      columna.classList.remove("arrastrando-encima");
+      if (!tarjetaArrastrada) return;
+
+      const columnaOrigen = tarjetaArrastrada.closest(".columna-embudo");
+      if (columnaOrigen === columna) return; // soltó en la misma columna, no hace nada
+
+      const telefono = tarjetaArrastrada.dataset.telefono;
+      const etapaId = columna.dataset.etapaId;
+      const etapaNombreNueva = columna.dataset.etapaNombre;
+
+      // Optimista: mueve la tarjeta ya mismo en pantalla, y si falla la
+      // regresa a su columna original.
+      cuerpo.appendChild(tarjetaArrastrada);
+      actualizarContadoresColumna(columnaOrigen);
+      actualizarContadoresColumna(columna);
+
+      try {
+        const respuesta = await fetch("/acciones/etapa", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ producto: PRODUCTO, telefono, etapaId: Number(etapaId) }),
+        });
+        if (!respuesta.ok) throw new Error("No se pudo mover el lead");
+      } catch (error) {
+        console.error("Error moviendo lead en el embudo:", error);
+        columnaOrigen.querySelector(".columna-embudo-cuerpo").appendChild(tarjetaArrastrada);
+        actualizarContadoresColumna(columnaOrigen);
+        actualizarContadoresColumna(columna);
+        alert("No se pudo mover el lead a " + etapaNombreNueva + ". Intenta de nuevo.");
+      }
+    });
+  });
+}
+
+function actualizarContadoresColumna(columna) {
+  const cuerpo = columna.querySelector(".columna-embudo-cuerpo");
+  const total = cuerpo.querySelectorAll(".tarjeta-embudo").length;
+  const spanContador = columna.querySelector(".columna-embudo-encabezado .texto-discreto");
+  if (spanContador) {
+    // Conserva el total de valor de venta que ya estaba mostrando (no lo
+    // recalculamos en el navegador), solo actualiza el número de leads.
+    const textoActual = spanContador.textContent;
+    const resto = textoActual.includes("·") ? " · " + textoActual.split("·")[1].trim() : "";
+    spanContador.textContent = `${total} lead${total === 1 ? "" : "s"}${resto}`;
+  }
+  const vacio = cuerpo.querySelector(".columna-embudo-vacia");
+  if (total > 0 && vacio) vacio.remove();
+  if (total === 0 && !vacio) {
+    const p = document.createElement("p");
+    p.className = "texto-discreto columna-embudo-vacia";
+    p.textContent = "Sin leads aquí";
+    cuerpo.appendChild(p);
+  }
+}
+
 // ============ Selector de etapa en línea (página /dashboard/oportunidades) ============
 document.addEventListener("change", async (evento) => {
   const selector = evento.target.closest(".selector-etapa-inline");

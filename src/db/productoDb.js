@@ -53,6 +53,22 @@ export async function listarConversacionesProducto(slug, { limite = 200 } = {}) 
 
 // Para el dashboard de triage: trae todo lo necesario para decidir a quién
 // atender primero, sin tener que abrir cada conversación una por una.
+// Solo el ÚLTIMO mensaje de cada conversación, sin traer el historial
+// completo (que puede ser pesado) — usa indexado directo de Postgres sobre
+// el jsonb para quedarse solo con el último elemento del arreglo.
+export async function listarUltimosMensajes(slug) {
+  const pool = obtenerPool(slug);
+  const resultado = await pool.query(
+    `SELECT
+       telefono,
+       historial -> -1 ->> 'content' AS ultimo_mensaje,
+       historial -> -1 ->> 'role' AS ultimo_rol
+     FROM conversaciones
+     WHERE jsonb_array_length(historial) > 0`
+  );
+  return resultado.rows;
+}
+
 export async function listarConversacionesParaTriage(slug, { limite = 300 } = {}) {
   const pool = obtenerPool(slug);
   const resultado = await pool.query(

@@ -4,6 +4,7 @@ import {
   listarConversacionesParaTriage,
   listarVisitasAgendadas,
   obtenerMetricasConversion,
+  listarUltimosMensajes,
 } from "../db/productoDb.js";
 import {
   listarLeadsCrm,
@@ -501,6 +502,56 @@ router.get("/dashboard/equipo", async (req, res) => {
   } catch (error) {
     console.error("Error cargando equipo:", error);
     res.status(500).send("Error cargando el equipo");
+  }
+});
+
+// Embudo de ventas — tablero estilo Kanban, una columna por etapa, con
+// arrastrar y soltar para mover un lead de etapa (reutiliza el mismo
+// endpoint /acciones/etapa que ya usa el selector de Oportunidades).
+router.get("/dashboard/embudo", async (req, res) => {
+  try {
+    const slug = req.query.producto || "senderos";
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).send("Producto no encontrado");
+
+    const [oportunidades, etapas, ultimosMensajes] = await Promise.all([
+      obtenerOportunidades(slug, req.session.usuario),
+      listarEtapas(slug),
+      listarUltimosMensajes(slug),
+    ]);
+    const mapaMensajes = new Map(ultimosMensajes.map((m) => [m.telefono, m]));
+    const etapasSeleccionables = etapas.filter(
+      (e) => e.nombre !== "Remarketing" && e.nombre !== "No contactar"
+    );
+
+    // Agrupa las oportunidades por etapa, y calcula el total de valor de
+    // venta por columna (lo que se ve en el encabezado, como en el mockup).
+    const columnas = etapasSeleccionables.map((etapa) => {
+      const leads = oportunidades
+        .filter((o) => o.etapa_nombre === etapa.nombre)
+        .map((o) => {
+          const mensaje = mapaMensajes.get(o.telefono);
+          return {
+            ...o,
+            ultimo_mensaje: mensaje?.ultimo_mensaje || null,
+            ultimo_mensaje_es_del_cliente: mensaje?.ultimo_rol === "user",
+            tiempoTexto: tiempoRelativo(o.ultimo_contacto),
+          };
+        });
+      const totalValor = leads.reduce((suma, l) => suma + (l.valor_venta || 0), 0);
+      return { ...etapa, leads, totalValor };
+    });
+
+    res.render("dashboard-embudo", {
+      productos,
+      productoActual: producto,
+      usuario: req.session.usuario,
+      columnas,
+      etapas: etapasSeleccionables,
+    });
+  } catch (error) {
+    console.error("Error cargando embudo:", error);
+    res.status(500).send("Error cargando el embudo de ventas");
   }
 });
 
