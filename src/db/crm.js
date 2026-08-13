@@ -309,6 +309,12 @@ export async function listarEtapas(producto) {
 // de "visita agendada", NO lo regresa a "Visita agendada"). Si el lead no
 // tiene ninguna etapa asignada todavía, simplemente le pone la objetivo.
 // Devuelve true si sí avanzó, false si no hizo falta.
+//
+// IMPORTANTE: registra el cambio en `eventos` con tipo "cambio_etapa" y
+// detalle { origen: "automatico", etapaId }, igual que el cambio manual
+// (ver routes/acciones.js) — así el módulo de velocidad del embudo puede
+// reconstruir el historial completo, sin huecos, sin importar si el cambio
+// lo hizo el webhook o un asesor a mano.
 export async function avanzarEtapaSiCorresponde(producto, telefono, nombreEtapaObjetivo) {
   await asegurarEsquema();
 
@@ -336,6 +342,10 @@ export async function avanzarEtapaSiCorresponde(producto, telefono, nombreEtapaO
     "UPDATE leads_crm SET etapa_id = $1, actualizado_en = now() WHERE producto = $2 AND telefono = $3",
     [objetivo.id, producto, telefono]
   );
+  await registrarEvento(producto, telefono, "cambio_etapa", {
+    origen: "automatico",
+    etapaId: objetivo.id,
+  });
   return true;
 }
 
@@ -343,6 +353,9 @@ export async function avanzarEtapaSiCorresponde(producto, telefono, nombreEtapaO
 // esta SÍ se puede aplicar sin importar en qué etapa estaba antes — son
 // estados especiales que el bot detectó (lead enfriado, o cliente pidió no
 // ser contactado más), no un paso normal del pipeline de ventas.
+//
+// También registra el cambio en `eventos` (mismo motivo que en
+// avanzarEtapaSiCorresponde, ver comentario arriba).
 export async function establecerEtapaEspecial(producto, telefono, nombreEtapa) {
   await asegurarEsquema();
   const etapas = await listarEtapas(producto);
@@ -353,6 +366,10 @@ export async function establecerEtapaEspecial(producto, telefono, nombreEtapa) {
     "UPDATE leads_crm SET etapa_id = $1, actualizado_en = now() WHERE producto = $2 AND telefono = $3",
     [objetivo.id, producto, telefono]
   );
+  await registrarEvento(producto, telefono, "cambio_etapa", {
+    origen: "automatico",
+    etapaId: objetivo.id,
+  });
   return true;
 }
 
