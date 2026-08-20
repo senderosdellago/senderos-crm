@@ -373,6 +373,51 @@ export async function establecerEtapaEspecial(producto, telefono, nombreEtapa) {
   return true;
 }
 
+// Reconstruye, para cada lead, la secuencia completa de etapas por las que
+// pasó: arranca con una entrada SINTÉTICA a la primera etapa del pipeline
+// (usando leads_crm.creado_en, porque la creación del lead nunca generó un
+// evento cambio_etapa) y sigue con la cadena real de eventos cambio_etapa.
+// Devuelve una fila por cada tramo (etapa + cuánto duró + si ya avanzó o
+// sigue ahí) — el cálculo de promedios/conversión/estancados se hace en la
+// capa de arriba (routes/dashboard.js), esta función solo entrega los datos.
+export async function obtenerSecuenciaEtapas(producto) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `
+    WITH etapa_inicial AS (
+      SELECT id FROM etapas WHERE producto = $1 ORDER BY orden ASC LIMIT 1
+    ),
+    entradas AS (
+      SELECT lc.telefono, lc.asesor_id, ei.id AS etapa_id, lc.creado_en AS entro_en
+      FROM leads_crm lc, etapa_inicial ei
+      WHERE lc.producto = $1
+
+      UNION ALL
+
+      SELECT ev.telefono, lc.asesor_id, (ev.detalle->>'etapaId')::int AS etapa_id, ev.creado_en AS entro_en
+      FROM eventos ev
+      JOIN leads_crm lc ON lc.producto = ev.producto AND lc.telefono = ev.telefono
+      WHERE ev.producto = $1 AND ev.tipo = 'cambio_etapa' AND ev.detalle->>'etapaId' IS NOT NULL
+    ),
+    secuencia AS (
+      SELECT
+        telefono, asesor_id, etapa_id, entro_en,
+        LEAD(entro_en) OVER (PARTITION BY telefono ORDER BY entro_en) AS siguiente_entro_en,
+        LEAD(etapa_id) OVER (PARTITION BY telefono ORDER BY entro_en) AS siguiente_etapa_id
+      FROM entradas
+    )
+    SELECT
+      telefono, asesor_id, etapa_id, entro_en,
+      (siguiente_entro_en IS NOT NULL AND siguiente_etapa_id IS DISTINCT FROM etapa_id) AS completo,
+      EXTRACT(EPOCH FROM (COALESCE(siguiente_entro_en, now()) - entro_en)) / 86400.0 AS dias
+    FROM secuencia
+    ORDER BY telefono, entro_en
+    `,
+    [producto]
+  );
+  return resultado.rows;
+}
+
 // Campos que se pueden editar desde la tabla de Oportunidades Activas. Lista
 // blanca a propósito — nunca se arma el nombre de columna con lo que venga
 // del formulario, así no hay riesgo de inyección ni de tocar una columna que

@@ -11,6 +11,7 @@ import {
   listarEtapas,
   listarTareasPendientes,
   obtenerMetaMensual,
+  obtenerSecuenciaEtapas,
 } from "../db/crm.js";
 import { requiereLogin } from "../middleware/auth.js";
 
@@ -558,6 +559,129 @@ router.get("/dashboard/embudo", async (req, res) => {
   } catch (error) {
     console.error("Error cargando embudo:", error);
     res.status(500).send("Error cargando el embudo de ventas");
+  }
+});
+
+// ============ MÓDULO DE VELOCIDAD DEL EMBUDO ============
+// Analiza, para cada lead, cuánto tiempo pasó en cada etapa y si ya avanzó
+// o sigue ahí. Con eso arma tres cosas: tiempo promedio por etapa (solo
+// contando leads que sí avanzaron), conversión etapa-a-etapa, y la lista de
+// leads estancados (más tiempo del promedio en su etapa actual).
+// No incluye Remarketing ni No contactar — no son parte del embudo lineal.
+function calcularMetricasVelocidad(filas, etapasOrdenadas, mapaNombresAsesor = new Map()) {
+  const etapasFunnel = etapasOrdenadas.filter(
+    (e) => e.nombre !== "Remarketing" && e.nombre !== "No contactar"
+  );
+  const ordenPorId = new Map(etapasFunnel.map((e) => [e.id, e.orden]));
+  const nombrePorId = new Map(etapasFunnel.map((e) => [e.id, e.nombre]));
+
+  // --- Tiempo promedio por etapa (solo transiciones completas) ---
+  const sumaPorEtapa = new Map(); // etapa_id -> { suma, cuenta }
+  for (const f of filas) {
+    if (!f.completo || !ordenPorId.has(f.etapa_id)) continue;
+    const actual = sumaPorEtapa.get(f.etapa_id) || { suma: 0, cuenta: 0 };
+    actual.suma += Number(f.dias);
+    actual.cuenta += 1;
+    sumaPorEtapa.set(f.etapa_id, actual);
+  }
+  const tiempoPromedioPorEtapa = etapasFunnel.map((e) => {
+    const datos = sumaPorEtapa.get(e.id);
+    return {
+      etapaId: e.id,
+      nombre: e.nombre,
+      orden: e.orden,
+      promedioDias: datos ? Math.round((datos.suma / datos.cuenta) * 10) / 10 : null,
+      muestras: datos?.cuenta || 0,
+    };
+  });
+  const promedioPorEtapaId = new Map(tiempoPromedioPorEtapa.map((t) => [t.etapaId, t.promedioDias]));
+
+  // --- Conversión etapa-a-etapa: máximo orden alcanzado por cada lead ---
+  const maxOrdenPorTelefono = new Map();
+  for (const f of filas) {
+    const orden = ordenPorId.get(f.etapa_id);
+    if (orden == null) continue;
+    const actual = maxOrdenPorTelefono.get(f.telefono) || 0;
+    if (orden > actual) maxOrdenPorTelefono.set(f.telefono, orden);
+  }
+  const alcanzaronOrden = etapasFunnel.map((e) => {
+    let cuenta = 0;
+    for (const maxOrden of maxOrdenPorTelefono.values()) {
+      if (maxOrden >= e.orden) cuenta++;
+    }
+    return cuenta;
+  });
+  const conversionEtapaAEtapa = etapasFunnel.slice(0, -1).map((e, i) => {
+    const desde = alcanzaronOrden[i];
+    const hasta = alcanzaronOrden[i + 1];
+    return {
+      desde: e.nombre,
+      hasta: etapasFunnel[i + 1].nombre,
+      totalDesde: desde,
+      totalHasta: hasta,
+      porcentaje: desde > 0 ? Math.round((hasta / desde) * 100) : null,
+    };
+  });
+
+  // --- Leads estancados: su fila actual (sin siguiente) comparada con el promedio ---
+  const leadsEstancados = filas
+    .filter((f) => !f.completo && ordenPorId.has(f.etapa_id))
+    .map((f) => {
+      const promedio = promedioPorEtapaId.get(f.etapa_id);
+      return {
+        telefono: f.telefono,
+        asesorId: f.asesor_id,
+        asesorNombre: mapaNombresAsesor.get(f.asesor_id) || null,
+        etapaNombre: nombrePorId.get(f.etapa_id),
+        dias: Math.round(Number(f.dias) * 10) / 10,
+        promedio,
+        diasDeMas: promedio != null ? Math.round((Number(f.dias) - promedio) * 10) / 10 : null,
+      };
+    })
+    .filter((l) => l.promedio != null && l.diasDeMas > 0)
+    .sort((a, b) => b.diasDeMas - a.diasDeMas);
+
+  return { tiempoPromedioPorEtapa, conversionEtapaAEtapa, leadsEstancados };
+}
+
+// Vista gerencial (admin) / individual (asesor) de la velocidad del embudo:
+// conversión etapa-a-etapa, tiempo promedio por etapa, y lista de leads
+// estancados. Un asesor solo ve SUS leads (mismo candado que el resto del
+// sistema); un admin ve el panorama completo.
+router.get("/dashboard/velocidad", async (req, res) => {
+  try {
+    const slug = req.query.producto || "senderos";
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).send("Producto no encontrado");
+
+    const usuario = req.session.usuario;
+    const [filasCrudas, etapas, usuariosActivos] = await Promise.all([
+      obtenerSecuenciaEtapas(slug),
+      listarEtapas(slug),
+      usuario.rol === "admin" ? listarUsuariosActivos() : Promise.resolve([]),
+    ]);
+
+    const filas =
+      usuario.rol === "admin" ? filasCrudas : filasCrudas.filter((f) => f.asesor_id === usuario.id);
+    const mapaNombresAsesor = new Map(usuariosActivos.map((u) => [u.id, u.nombre]));
+
+    const { tiempoPromedioPorEtapa, conversionEtapaAEtapa, leadsEstancados } = calcularMetricasVelocidad(
+      filas,
+      etapas,
+      mapaNombresAsesor
+    );
+
+    res.render("dashboard-velocidad", {
+      productos,
+      productoActual: producto,
+      usuario,
+      tiempoPromedioPorEtapa,
+      conversionEtapaAEtapa,
+      leadsEstancados,
+    });
+  } catch (error) {
+    console.error("Error cargando velocidad del embudo:", error);
+    res.status(500).send("Error cargando el módulo de velocidad");
   }
 });
 

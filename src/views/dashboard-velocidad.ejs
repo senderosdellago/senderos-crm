@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Velocidad del Embudo — <%= productoActual.nombre %></title>
+  <link rel="stylesheet" href="/css/estilos.css" />
+</head>
+<body>
+  <header class="encabezado">
+    <div class="encabezado-marca">
+      <img src="/img/logo-senderos.png" alt="Senderos del Lago" class="encabezado-logo" />
+      <strong><%= productoActual.nombre %></strong>
+    </div>
+    <nav class="nav-principal">
+      <a href="/dashboard?producto=<%= productoActual.slug %>">Dashboard</a>
+      <a href="/dashboard/embudo?producto=<%= productoActual.slug %>">Embudo</a>
+      <a href="/dashboard/velocidad?producto=<%= productoActual.slug %>" class="activo">Velocidad</a>
+      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
+    </nav>
+    <div class="encabezado-usuario">
+      <span><%= usuario.nombre %></span>
+      <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>
+    </div>
+  </header>
+  <main class="contenedor-dashboard">
+    <a class="enlace-volver" href="/dashboard?producto=<%= productoActual.slug %>">← Volver al dashboard</a>
+    <h1 class="titulo-pagina">Velocidad del Embudo</h1>
+    <p class="texto-discreto">
+      <% if (usuario.rol === "admin") { %>
+        Conversión, tiempo por etapa, y leads estancados — de todo el equipo.
+      <% } else { %>
+        Conversión, tiempo por etapa, y leads estancados — solo de tus leads.
+      <% } %>
+      El historial todavía es corto, así que los promedios se afinan cada semana que pasa. No incluye Remarketing ni No contactar.
+    </p>
+
+    <h2 class="titulo-seccion">Conversión etapa a etapa</h2>
+    <% if (conversionEtapaAEtapa.length === 0) { %>
+      <p class="texto-discreto">Todavía no hay suficiente historial para calcular esto.</p>
+    <% } else { %>
+      <table class="tabla-calendario">
+        <thead>
+          <tr>
+            <th>De</th>
+            <th>A</th>
+            <th>Llegaron a "De"</th>
+            <th>Avanzaron a "A"</th>
+            <th>Conversión</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% conversionEtapaAEtapa.forEach((c) => { %>
+            <tr>
+              <td><%= c.desde %></td>
+              <td><%= c.hasta %></td>
+              <td><%= c.totalDesde %></td>
+              <td><%= c.totalHasta %></td>
+              <td>
+                <% if (c.porcentaje == null) { %>
+                  —
+                <% } else { %>
+                  <strong><%= c.porcentaje %>%</strong>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+
+    <h2 class="titulo-seccion">Tiempo promedio por etapa</h2>
+    <table class="tabla-calendario">
+      <thead>
+        <tr>
+          <th>Etapa</th>
+          <th>Promedio (días)</th>
+          <th>Muestras</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% tiempoPromedioPorEtapa.forEach((t) => { %>
+          <tr>
+            <td><%= t.nombre %></td>
+            <td>
+              <% if (t.promedioDias == null) { %>
+                <span class="texto-discreto">Sin datos suficientes</span>
+              <% } else { %>
+                <%= t.promedioDias %> días
+              <% } %>
+            </td>
+            <td class="texto-discreto"><%= t.muestras %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <h2 class="titulo-seccion">Leads estancados (<%= leadsEstancados.length %>)</h2>
+    <p class="texto-discreto">Llevan más tiempo del promedio en su etapa actual — más atrasado primero.</p>
+    <table class="tabla-calendario">
+      <thead>
+        <tr>
+          <th>Teléfono</th>
+          <th>Etapa</th>
+          <th>Días en la etapa</th>
+          <th>Promedio de la etapa</th>
+          <th>Días de más</th>
+          <% if (usuario.rol === "admin") { %><th>Asesor</th><% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (leadsEstancados.length === 0) { %>
+          <tr><td colspan="<%= usuario.rol === 'admin' ? 6 : 5 %>" class="texto-discreto">Ningún lead está por encima del promedio en este momento.</td></tr>
+        <% } %>
+        <% leadsEstancados.forEach((l) => { %>
+          <tr>
+            <td><a href="/conversacion/<%= productoActual.slug %>/<%= l.telefono %>"><%= l.telefono %></a></td>
+            <td><%= l.etapaNombre %></td>
+            <td><%= l.dias %> días</td>
+            <td class="texto-discreto"><%= l.promedio %> días</td>
+            <td><strong>+<%= l.diasDeMas %> días</strong></td>
+            <% if (usuario.rol === "admin") { %><td><%= l.asesorNombre || "Sin asignar" %></td><% } %>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>
