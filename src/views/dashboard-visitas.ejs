@@ -40,7 +40,7 @@
           <tr data-telefono="<%= v.telefono %>">
             <td><input type="text" class="campo-nombre-editable" data-telefono="<%= v.telefono %>" value="<%= v.nombre || '' %>" placeholder="Sin nombre" /></td>
             <td><%= v.telefono %></td>
-            <td><%= v.dia_semana %>, <%= v.fecha_visita_iso %></td>
+            <td><%= v.fechaCorta %></td>
             <td><%= v.hora_visita_pendiente || "—" %></td>
             <td><%= v.asesor_nombre || "Sin asignar" %></td>
             <td class="celda-acciones">
@@ -74,7 +74,7 @@
           <tr data-telefono="<%= v.telefono %>">
             <td><input type="text" class="campo-nombre-editable" data-telefono="<%= v.telefono %>" value="<%= v.nombre || '' %>" placeholder="Sin nombre" /></td>
             <td><%= v.telefono %></td>
-            <td><%= v.dia_semana %>, <%= v.fecha_visita_iso %></td>
+            <td><%= v.fechaCorta %></td>
             <td><%= v.hora_visita_pendiente || "—" %></td>
             <td><%= v.asesor_nombre || "Sin asignar" %></td>
             <td class="celda-acciones">

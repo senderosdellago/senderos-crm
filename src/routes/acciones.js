@@ -11,6 +11,8 @@ import {
   crearTarea,
   completarTarea,
   guardarMetaMensual,
+  marcarLeadEliminado,
+  restaurarLead,
 } from "../db/crm.js";
 import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
 
@@ -377,6 +379,39 @@ router.post("/etapas/renombrar", requiereAdmin, async (req, res) => {
     res.json({ ok: true, etapa: actualizada.rows[0] });
   } catch (error) {
     console.error("Error renombrando etapa:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// SOLO admin — mueve el lead a la sección de Eliminados. No borra nada de
+// verdad (ver comentario en db/crm.js:marcarLeadEliminado) — es reversible
+// desde la página de Eliminados.
+router.post("/acciones/eliminar-lead", requiereAdmin, async (req, res) => {
+  try {
+    const { producto: slug, telefono } = req.body;
+    if (!slug || !telefono) return res.status(400).json({ error: "Falta 'producto' o 'telefono'" });
+
+    await marcarLeadEliminado(slug, telefono);
+    await registrarEvento(slug, telefono, "lead_eliminado", { por: req.session.usuario.nombre });
+    emitirNovedad(req, slug, telefono);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error eliminando lead:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/acciones/restaurar-lead", requiereAdmin, async (req, res) => {
+  try {
+    const { producto: slug, telefono } = req.body;
+    if (!slug || !telefono) return res.status(400).json({ error: "Falta 'producto' o 'telefono'" });
+
+    await restaurarLead(slug, telefono);
+    await registrarEvento(slug, telefono, "lead_restaurado", { por: req.session.usuario.nombre });
+    emitirNovedad(req, slug, telefono);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error restaurando lead:", error);
     res.status(500).json({ error: error.message });
   }
 });

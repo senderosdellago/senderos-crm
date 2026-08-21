@@ -312,3 +312,28 @@ if (botonGuardarNotas) {
     }
   });
 }
+
+const botonEliminarLead = document.getElementById("boton-eliminar-lead");
+if (botonEliminarLead) {
+  botonEliminarLead.addEventListener("click", async () => {
+    const confirmado = confirm(
+      "¿Eliminar este lead?\n\nSe mueve a la sección de Eliminados y desaparece de Bandeja, Embudo y Oportunidades. El historial de WhatsApp NO se borra — se puede restaurar en cualquier momento desde Eliminados."
+    );
+    if (!confirmado) return;
+
+    botonEliminarLead.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/eliminar-lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono: TELEFONO }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo eliminar el lead");
+      alert("Lead eliminado. Puedes restaurarlo desde la sección de Eliminados.");
+      window.location.href = `/bandeja?producto=${PRODUCTO}`;
+    } catch (error) {
+      alert(error.message);
+      botonEliminarLead.disabled = false;
+    }
+  });
+}

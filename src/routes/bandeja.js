@@ -1,7 +1,16 @@
 import { Router } from "express";
 import { productos, obtenerProducto } from "../config/productos.js";
 import { listarConversacionesProducto, obtenerConversacionProducto } from "../db/productoDb.js";
-import { listarEtapas, listarLeadsCrm, listarUsuariosActivos, asegurarLeadCrm, listarTareasLead } from "../db/crm.js";
+import {
+  listarEtapas,
+  listarLeadsCrm,
+  listarUsuariosActivos,
+  asegurarLeadCrm,
+  listarTareasLead,
+  listarTelefonosEliminados,
+  listarLeadsEliminados,
+} from "../db/crm.js";
+import { requiereAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -14,26 +23,32 @@ function filtrarPorAsesor(items, usuario) {
 
 // Combina los datos "reales" del bot (historial, clasificación) con el
 // overlay del CRM (etapa, asesor asignado) para una lista de conversaciones.
+// Excluye los leads eliminados: listarLeadsCrm ya no los trae en el overlay,
+// pero la conversación en sí vive en la base del BOT (otra base de datos
+// distinta) y seguiría apareciendo si no se filtra explícitamente aquí.
 async function construirListaCombinada(slug, usuario) {
-  const [conversaciones, leadsCrm] = await Promise.all([
+  const [conversaciones, leadsCrm, telefonosEliminados] = await Promise.all([
     listarConversacionesProducto(slug),
     listarLeadsCrm(slug),
+    listarTelefonosEliminados(slug),
   ]);
 
   const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
 
-  const combinadas = conversaciones.map((c) => {
-    const overlay = mapaCrm.get(c.telefono);
-    return {
-      ...c,
-      nombre: overlay?.nombre_override || c.nombre,
-      etapa_nombre: overlay?.etapa_nombre || null,
-      etapa_id: overlay?.etapa_id || null,
-      etapa_porcentaje: overlay?.etapa_porcentaje ?? null,
-      asesor_id: overlay?.asesor_id || null,
-      asesor_nombre: overlay?.asesor_nombre || null,
-    };
-  });
+  const combinadas = conversaciones
+    .filter((c) => !telefonosEliminados.has(c.telefono))
+    .map((c) => {
+      const overlay = mapaCrm.get(c.telefono);
+      return {
+        ...c,
+        nombre: overlay?.nombre_override || c.nombre,
+        etapa_nombre: overlay?.etapa_nombre || null,
+        etapa_id: overlay?.etapa_id || null,
+        etapa_porcentaje: overlay?.etapa_porcentaje ?? null,
+        asesor_id: overlay?.asesor_id || null,
+        asesor_nombre: overlay?.asesor_nombre || null,
+      };
+    });
 
   return filtrarPorAsesor(combinadas, usuario);
 }
@@ -104,6 +119,11 @@ router.get("/conversacion/:producto/:telefono", async (req, res) => {
     res.render("conversacion", {
       productoActual: producto,
       telefono,
+      // Nombre correcto: si hay una edición hecha desde el CRM
+      // (nombre_override), esa manda — igual que en Bandeja, Embudo y
+      // Oportunidades. Antes esta página mostraba el nombre crudo del bot
+      // sin importar si alguien ya lo había corregido en el CRM.
+      nombreLead: leadCrm?.nombre_override || conversacion.respuestas?.nombre || null,
       conversacion,
       leadCrm,
       etapas,
@@ -133,6 +153,29 @@ router.get("/api/conversacion/:producto/:telefono", async (req, res) => {
   } catch (error) {
     console.error("Error en /api/conversacion:", error);
     res.status(500).json({ error: "Error cargando la conversación" });
+  }
+});
+
+// SOLO admin — lista de leads eliminados, con opción de restaurar. No
+// requiere filtrarPorAsesor: eliminar/restaurar es una acción exclusiva de
+// administración, no algo que un asesor gestione por su cuenta.
+router.get("/eliminados", requiereAdmin, async (req, res) => {
+  try {
+    const slug = req.query.producto || "senderos";
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).send("Producto no encontrado");
+
+    const leadsEliminados = await listarLeadsEliminados(slug);
+
+    res.render("eliminados", {
+      productos,
+      productoActual: producto,
+      usuario: req.session.usuario,
+      leadsEliminados,
+    });
+  } catch (error) {
+    console.error("Error cargando eliminados:", error);
+    res.status(500).send("Error cargando la lista de eliminados");
   }
 });
 

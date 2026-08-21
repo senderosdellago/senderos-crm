@@ -12,6 +12,7 @@ import {
   listarTareasPendientes,
   obtenerMetaMensual,
   obtenerSecuenciaEtapas,
+  listarTelefonosEliminados,
 } from "../db/crm.js";
 import { requiereLogin } from "../middleware/auth.js";
 
@@ -159,6 +160,18 @@ function diaDeLaSemana(fechaISO) {
   return fecha.toLocaleDateString("es-CO", { timeZone: "America/Bogota", weekday: "long" });
 }
 
+// Formato corto pedido para mostrar fechas de visita: "viernes 22 agosto" —
+// sin año, sin guiones ISO. Reemplaza los pares sueltos de "Día" + "Fecha"
+// que se mostraban antes como dos columnas separadas.
+function formatearFechaCorta(fechaISO) {
+  if (!fechaISO) return "";
+  const [anio, mes, dia] = fechaISO.split("-").map(Number);
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia, 12));
+  const diaSemana = fecha.toLocaleDateString("es-CO", { timeZone: "America/Bogota", weekday: "long" });
+  const mesNombre = fecha.toLocaleDateString("es-CO", { timeZone: "America/Bogota", month: "long" });
+  return `${diaSemana} ${dia} ${mesNombre}`;
+}
+
 function organizarVisitas(visitas, mapaCrm, usuario) {
   const hoy = hoyISOColombia();
 
@@ -171,6 +184,7 @@ function organizarVisitas(visitas, mapaCrm, usuario) {
       asesor_id: overlay?.asesor_id || null,
       asesor_nombre: overlay?.asesor_nombre || null,
       dia_semana: diaDeLaSemana(v.fecha_visita_iso),
+      fechaCorta: formatearFechaCorta(v.fecha_visita_iso),
     };
   });
   const filtradas = filtrarPorAsesor(conAsesor, usuario);
@@ -209,12 +223,18 @@ function calcularMetricas(m) {
 // simplemente toman de acá lo que necesitan — así el filtro por asesor se
 // aplica en un solo lugar, no en cada ruta por separado.
 async function construirDatosDashboard(slug, usuario) {
-  const [conversaciones, leadsCrm, visitas, metricasCrudas] = await Promise.all([
+  const [conversacionesCrudas, leadsCrm, visitasCrudas, metricasCrudas, telefonosEliminados] = await Promise.all([
     listarConversacionesParaTriage(slug),
     listarLeadsCrm(slug),
     listarVisitasAgendadas(slug),
     obtenerMetricasConversion(slug),
+    listarTelefonosEliminados(slug),
   ]);
+  // Igual que en Bandeja: listarLeadsCrm ya no trae el overlay de los
+  // eliminados, pero la conversación en sí vive en la base del bot (otra
+  // base de datos), así que hay que quitarla explícitamente aquí también.
+  const conversaciones = conversacionesCrudas.filter((c) => !telefonosEliminados.has(c.telefono));
+  const visitas = visitasCrudas.filter((v) => !telefonosEliminados.has(v.telefono));
 
   const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
   const conAsesor = conversaciones.map((c) => ({
@@ -318,10 +338,12 @@ router.get("/dashboard/visitas", async (req, res) => {
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
-    const [leadsCrm, visitas] = await Promise.all([
+    const [leadsCrm, visitasCrudas, telefonosEliminados] = await Promise.all([
       listarLeadsCrm(slug),
       listarVisitasAgendadas(slug),
+      listarTelefonosEliminados(slug),
     ]);
+    const visitas = visitasCrudas.filter((v) => !telefonosEliminados.has(v.telefono));
     const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
     const { proximas, porConfirmar } = organizarVisitas(visitas, mapaCrm, req.session.usuario);
 
@@ -379,10 +401,12 @@ router.get("/dashboard/lista/:tipo", async (req, res) => {
 // Reutilizable: la usan tanto /dashboard (para el resumen y la vista previa)
 // como /dashboard/oportunidades (la tabla completa).
 async function obtenerOportunidades(slug, usuario) {
-  const [conversaciones, leadsCrm] = await Promise.all([
+  const [conversacionesCrudas, leadsCrm, telefonosEliminados] = await Promise.all([
     listarConversacionesParaTriage(slug),
     listarLeadsCrm(slug),
+    listarTelefonosEliminados(slug),
   ]);
+  const conversaciones = conversacionesCrudas.filter((c) => !telefonosEliminados.has(c.telefono));
   const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
 
   const oportunidades = conversaciones

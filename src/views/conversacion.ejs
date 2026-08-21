@@ -33,7 +33,7 @@
 
   <main class="contenedor-conversacion">
     <div class="panel-resumen">
-      <div><span class="resumen-etiqueta">Nombre</span><span><%= conversacion.respuestas?.nombre || "No capturado" %></span></div>
+      <div><span class="resumen-etiqueta">Nombre</span><span><%= nombreLead || "No capturado" %></span></div>
       <div><span class="resumen-etiqueta">Clasificación</span><span class="etiqueta etiqueta-<%= conversacion.clasificacion %>"><%= conversacion.clasificacion %></span></div>
       <div><span class="resumen-etiqueta">Uso</span><span><%= conversacion.respuestas?.uso || "No especificado" %></span></div>
       <div><span class="resumen-etiqueta">Presupuesto</span><span><%= conversacion.respuestas?.presupuesto || "No especificado" %></span></div>
@@ -124,6 +124,11 @@
         </form>
       <% } else { %>
         <button id="boton-intervenir" class="boton">Tomar control de esta conversación</button>
+      <% } %>
+      <% if (usuario.rol === "admin") { %>
+        <button id="boton-eliminar-lead" class="boton boton-peligro" data-telefono="<%= telefono %>" title="Lo mueve a la sección de Eliminados — no borra el historial de WhatsApp, y se puede restaurar en cualquier momento">
+          Eliminar lead
+        </button>
       <% } %>
     </div>
   </main>

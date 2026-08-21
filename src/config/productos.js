@@ -20,6 +20,7 @@ export const productos = [
       "Lead",
       "Contacto",
       "Visita agendada",
+      "Pendiente reprogramar visita",
       "Visita realizada",
       "Negociación",
       "Separación",

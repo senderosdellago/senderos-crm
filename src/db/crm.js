@@ -67,7 +67,8 @@ export async function asegurarEsquema() {
       ADD COLUMN IF NOT EXISTS visita_resultado TEXT,
       ADD COLUMN IF NOT EXISTS visita_resultado_en TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS valor_venta NUMERIC,
-      ADD COLUMN IF NOT EXISTS nombre_override TEXT;
+      ADD COLUMN IF NOT EXISTS nombre_override TEXT,
+      ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMPTZ;
   `);
 
   await pool.query(`
@@ -116,6 +117,7 @@ export async function asegurarEsquema() {
 
   await sembrarEtapasIniciales();
   await migrarEtapasV2();
+  await migrarEtapasV3();
 
   listo = true;
 }
@@ -220,19 +222,87 @@ async function migrarEtapasV2() {
   }
 }
 
+// Migración puntual V3: inserta "Pendiente reprogramar visita" entre
+// "Visita agendada" y "Visita realizada". Mismo patrón que migrarEtapasV2 —
+// nunca borra ni recrea filas, así los leads que ya tenían etapa asignada no
+// pierden esa asignación. Idempotente: si ya existe la etapa nueva, no hace
+// nada la próxima vez que arranque el servidor.
+async function migrarEtapasV3() {
+  for (const producto of productos) {
+    const filas = await pool.query("SELECT id, nombre, orden FROM etapas WHERE producto = $1", [
+      producto.slug,
+    ]);
+    if (filas.rows.length === 0) continue;
+
+    const yaMigrado = filas.rows.some((f) => f.nombre === "Pendiente reprogramar visita");
+    if (yaMigrado) continue;
+
+    const cliente = await pool.connect();
+    try {
+      await cliente.query("BEGIN");
+
+      // Paso 1: mover las etapas de orden 4 en adelante (sin tocar las
+      // especiales 90/91) a un rango temporal alto, para no chocar con el
+      // UNIQUE(producto, orden) mientras se reordena ("Pendiente reprogramar
+      // visita" necesita el puesto 4, que hoy ocupa "Visita realizada").
+      await cliente.query(
+        "UPDATE etapas SET orden = orden + 1000 WHERE producto = $1 AND orden >= 4 AND orden < 90",
+        [producto.slug]
+      );
+
+      // Paso 2: insertar la etapa nueva en el puesto 4.
+      await cliente.query(
+        `INSERT INTO etapas (producto, nombre, orden, porcentaje)
+         VALUES ($1, 'Pendiente reprogramar visita', 4, 35)
+         ON CONFLICT (producto, orden) DO NOTHING`,
+        [producto.slug]
+      );
+
+      // Paso 3: bajar del rango temporal a los valores finales según
+      // MAPA_ETAPAS_ESTANDAR (mismo mecanismo que migrarEtapasV2).
+      const filasTemporales = await cliente.query(
+        "SELECT id, nombre, orden FROM etapas WHERE producto = $1 AND orden >= 1000",
+        [producto.slug]
+      );
+      for (const fila of filasTemporales.rows) {
+        const objetivo = MAPA_ETAPAS_ESTANDAR[fila.nombre];
+        if (objetivo) {
+          await cliente.query("UPDATE etapas SET orden = $1, porcentaje = $2 WHERE id = $3", [
+            objetivo.orden,
+            objetivo.porcentaje,
+            fila.id,
+          ]);
+        } else {
+          await cliente.query("UPDATE etapas SET orden = orden - 1000 WHERE id = $1", [fila.id]);
+        }
+      }
+
+      await cliente.query("COMMIT");
+      console.log(`[Migración V3] "Pendiente reprogramar visita" agregada para "${producto.slug}".`);
+    } catch (error) {
+      await cliente.query("ROLLBACK");
+      console.error(`[Migración V3] Error migrando etapas de "${producto.slug}":`, error);
+    } finally {
+      cliente.release();
+    }
+  }
+}
+
 // Mapa compartido nombre → { orden, porcentaje } para el pipeline estándar.
 // Lo usan tanto la siembra inicial (producto nuevo) como la migración de
-// productos que ya tenían etapas de la versión anterior (ver migrarEtapasV2).
+// productos que ya tenían etapas de la versión anterior (ver migrarEtapasV2
+// y migrarEtapasV3).
 const MAPA_ETAPAS_ESTANDAR = {
   Lead: { orden: 1, porcentaje: 10 },
   Contacto: { orden: 2, porcentaje: 20 },
   "Visita agendada": { orden: 3, porcentaje: 40 },
-  "Visita realizada": { orden: 4, porcentaje: 60 },
-  Negociación: { orden: 5, porcentaje: 80 },
-  Separación: { orden: 6, porcentaje: 100 },
-  Promesa: { orden: 7, porcentaje: null },
-  Escritura: { orden: 8, porcentaje: null },
-  Entrega: { orden: 9, porcentaje: null },
+  "Pendiente reprogramar visita": { orden: 4, porcentaje: 35 },
+  "Visita realizada": { orden: 5, porcentaje: 60 },
+  Negociación: { orden: 6, porcentaje: 80 },
+  Separación: { orden: 7, porcentaje: 100 },
+  Promesa: { orden: 8, porcentaje: null },
+  Escritura: { orden: 9, porcentaje: null },
+  Entrega: { orden: 10, porcentaje: null },
   Remarketing: { orden: 90, porcentaje: null },
   "No contactar": { orden: 91, porcentaje: null },
 };
@@ -489,6 +559,10 @@ export async function completarTarea(producto, tareaId) {
   return resultado.rows[0] || null;
 }
 
+// Excluye por defecto los leads marcados como eliminados — así CUALQUIER
+// pantalla que ya use esta función (Bandeja, Oportunidades, Embudo,
+// Dashboard) deja de mostrarlos automáticamente, sin tener que tocar cada
+// vista una por una. Para ver los eliminados, usar listarLeadsEliminados.
 export async function listarLeadsCrm(producto) {
   await asegurarEsquema();
   const resultado = await pool.query(
@@ -496,10 +570,60 @@ export async function listarLeadsCrm(producto) {
      FROM leads_crm lc
      LEFT JOIN etapas e ON e.id = lc.etapa_id
      LEFT JOIN usuarios u ON u.id = lc.asesor_id
-     WHERE lc.producto = $1`,
+     WHERE lc.producto = $1 AND lc.eliminado_en IS NULL`,
     [producto]
   );
   return resultado.rows;
+}
+
+// Los leads eliminados, para la página de administración donde se pueden
+// ver y restaurar. Ordenados del más reciente al más antiguo.
+export async function listarLeadsEliminados(producto) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `SELECT lc.*, e.nombre AS etapa_nombre, u.nombre AS asesor_nombre
+     FROM leads_crm lc
+     LEFT JOIN etapas e ON e.id = lc.etapa_id
+     LEFT JOIN usuarios u ON u.id = lc.asesor_id
+     WHERE lc.producto = $1 AND lc.eliminado_en IS NOT NULL
+     ORDER BY lc.eliminado_en DESC`,
+    [producto]
+  );
+  return resultado.rows;
+}
+
+// Solo los teléfonos eliminados, en un Set liviano — lo usan Bandeja y el
+// Dashboard para filtrar las conversaciones del bot (que viven en OTRA base
+// de datos, así que no basta con que el overlay de leads_crm los excluya;
+// hay que quitarlos también de la lista de conversaciones antes de mostrarla).
+export async function listarTelefonosEliminados(producto) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    "SELECT telefono FROM leads_crm WHERE producto = $1 AND eliminado_en IS NOT NULL",
+    [producto]
+  );
+  return new Set(resultado.rows.map((r) => r.telefono));
+}
+
+// SOLO admin (se valida en la ruta). No borra nada de verdad — el
+// historial de WhatsApp del cliente vive en la base de datos del bot, que el
+// CRM ni siquiera tiene permiso de escritura para tocar (ver productoDb.js,
+// es de solo lectura). Esto únicamente saca el lead de las pantallas
+// activas del CRM; queda visible en la sección de Eliminados y se puede
+// restaurar en cualquier momento.
+export async function marcarLeadEliminado(producto, telefono) {
+  await asegurarLeadCrm(producto, telefono);
+  await pool.query(
+    "UPDATE leads_crm SET eliminado_en = now(), actualizado_en = now() WHERE producto = $1 AND telefono = $2",
+    [producto, telefono]
+  );
+}
+
+export async function restaurarLead(producto, telefono) {
+  await pool.query(
+    "UPDATE leads_crm SET eliminado_en = NULL, actualizado_en = now() WHERE producto = $1 AND telefono = $2",
+    [producto, telefono]
+  );
 }
 
 export async function guardarNotas(producto, telefono, notas) {

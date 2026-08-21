@@ -71,7 +71,7 @@
       </div>
       <table class="tabla-calendario">
         <thead>
-          <tr><th>Cliente</th><th>Día</th><th>Fecha</th><th>Hora</th><% if (usuario.rol === "admin") { %><th>Asesor</th><% } %></tr>
+          <tr><th>Cliente</th><th>Teléfono</th><th>Fecha</th><th>Hora</th><% if (usuario.rol === "admin") { %><th>Asesor</th><% } %></tr>
         </thead>
         <tbody>
           <% if (visitasPreview.length === 0) { %>
@@ -79,9 +79,11 @@
           <% } %>
           <% visitasPreview.forEach((v) => { %>
             <tr>
-              <td><a href="/conversacion/<%= productoActual.slug %>/<%= v.telefono %>"><%= v.nombre || v.telefono %></a></td>
-              <td><%= v.dia_semana %></td>
-              <td><%= v.fecha_visita_iso %></td>
+              <td>
+                <input type="text" class="campo-nombre-editable" data-telefono="<%= v.telefono %>" value="<%= v.nombre || '' %>" placeholder="Sin nombre" />
+              </td>
+              <td><a href="/conversacion/<%= productoActual.slug %>/<%= v.telefono %>"><%= v.telefono %></a></td>
+              <td><%= v.fechaCorta %></td>
               <td><%= v.hora_visita_pendiente || "—" %></td>
               <% if (usuario.rol === "admin") { %><td><%= v.asesor_nombre || "Sin asignar" %></td><% } %>
             </tr>

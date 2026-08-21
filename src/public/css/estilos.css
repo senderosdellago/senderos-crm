@@ -158,6 +158,8 @@ body {
   font-size: 14px;
 }
 .boton-secundario { background: #757575; }
+.boton-peligro { background: #fff; color: #c0392b; border: 1px solid #c0392b; }
+.boton-peligro:hover { background: #c0392b; color: #fff; }
 .form-mensaje { display: flex; gap: 8px; flex: 1; }
 .form-mensaje input {
   flex: 1;
@@ -231,7 +233,21 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
 }
 .tarjeta-embudo-nombre:hover, .tarjeta-embudo-nombre:focus { background: #f2f2f2; }
 .tarjeta-embudo-link { text-decoration: none; font-size: 13px; flex-shrink: 0; }
-.tarjeta-embudo-linea2 { display: flex; justify-content: space-between; font-size: 11px; color: #777; padding: 0 4px; }
+.tarjeta-embudo-linea2 { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #777; padding: 0 4px; gap: 6px; }
+.tarjeta-embudo-telefono { color: #777; text-decoration: none; }
+.tarjeta-embudo-telefono:hover { text-decoration: underline; color: var(--verde); }
+.tarjeta-embudo-valor {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  color: #777;
+  text-align: right;
+  padding: 2px 4px;
+  border-radius: 4px;
+  width: 90px;
+  min-width: 0;
+}
+.tarjeta-embudo-valor:hover, .tarjeta-embudo-valor:focus { background: #f2f2f2; color: #1c1e21; }
 .saludo-dashboard { font-size: 16px; margin: 0 0 20px; color: #333; }
 
 .grid-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 28px; }

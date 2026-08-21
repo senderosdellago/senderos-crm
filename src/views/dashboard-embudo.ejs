@@ -58,11 +58,18 @@
                 <div class="tarjeta-embudo-info">
                   <div class="tarjeta-embudo-linea1">
                     <input type="text" class="campo-nombre-editable tarjeta-embudo-nombre" data-telefono="<%= lead.telefono %>" value="<%= lead.nombre || '' %>" placeholder="Sin nombre" onmousedown="event.stopPropagation()" />
-                    <a href="/conversacion/<%= productoActual.slug %>/<%= lead.telefono %>" class="tarjeta-embudo-link" title="Ver conversación">💬</a>
+                    <a href="/conversacion/<%= productoActual.slug %>/<%= lead.telefono %>" class="tarjeta-embudo-link" title="Ver conversación" onmousedown="event.stopPropagation()">💬</a>
                   </div>
                   <div class="tarjeta-embudo-linea2">
-                    <span><%= lead.telefono %></span>
-                    <span><%= lead.valor_venta ? "$" + lead.valor_venta.toLocaleString("es-CO") : "Sin valor" %></span>
+                    <a href="/conversacion/<%= productoActual.slug %>/<%= lead.telefono %>" class="tarjeta-embudo-telefono" onmousedown="event.stopPropagation()"><%= lead.telefono %></a>
+                    <input
+                      type="text"
+                      class="campo-valor-venta tarjeta-embudo-valor"
+                      data-telefono="<%= lead.telefono %>"
+                      value="<%= lead.valor_venta || '' %>"
+                      placeholder="Sin valor"
+                      onmousedown="event.stopPropagation()"
+                    />
                   </div>
                 </div>
               </div>
