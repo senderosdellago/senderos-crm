@@ -37,6 +37,7 @@
           <th>Nombre</th>
           <th>Teléfono</th>
           <th>Última etapa</th>
+          <th>Motivo</th>
           <th>Asesor</th>
           <th>Eliminado</th>
           <th></th>
@@ -44,13 +45,14 @@
       </thead>
       <tbody>
         <% if (leadsEliminados.length === 0) { %>
-          <tr><td colspan="6" class="texto-discreto">No hay leads eliminados por ahora.</td></tr>
+          <tr><td colspan="7" class="texto-discreto">No hay leads eliminados por ahora.</td></tr>
         <% } %>
         <% leadsEliminados.forEach((lead) => { %>
           <tr data-telefono="<%= lead.telefono %>">
             <td><%= lead.nombre_override || "Sin nombre" %></td>
             <td><a href="/conversacion/<%= productoActual.slug %>/<%= lead.telefono %>"><%= lead.telefono %></a></td>
             <td><%= lead.etapa_nombre || "—" %></td>
+            <td><%= lead.eliminado_motivo || "—" %></td>
             <td><%= lead.asesor_nombre || "Sin asignar" %></td>
             <td><%= new Date(lead.eliminado_en).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "short", year: "numeric" }) %></td>
             <td><button class="boton boton-secundario boton-restaurar-lead" data-telefono="<%= lead.telefono %>">Restaurar</button></td>

@@ -19,8 +19,8 @@ export const productos = [
     etapasIniciales: [
       "Lead",
       "Contacto",
-      "Visita agendada",
       "Pendiente reprogramar visita",
+      "Visita agendada",
       "Visita realizada",
       "Negociación",
       "Separación",

@@ -35,16 +35,28 @@
     <div class="panel-resumen">
       <div><span class="resumen-etiqueta">Nombre</span><span><%= nombreLead || "No capturado" %></span></div>
       <div><span class="resumen-etiqueta">Clasificación</span><span class="etiqueta etiqueta-<%= conversacion.clasificacion %>"><%= conversacion.clasificacion %></span></div>
-      <div><span class="resumen-etiqueta">Uso</span><span><%= conversacion.respuestas?.uso || "No especificado" %></span></div>
+      <div class="resumen-acciones">
+        <button id="boton-abrir-reagendar" class="boton boton-secundario">Reagendar</button>
+        <% if (usuario.rol === "admin") { %>
+          <button id="boton-eliminar-lead" class="boton boton-peligro" data-telefono="<%= telefono %>">Eliminar</button>
+        <% } %>
+      </div>
       <div><span class="resumen-etiqueta">Presupuesto</span><span><%= conversacion.respuestas?.presupuesto || "No especificado" %></span></div>
       <div><span class="resumen-etiqueta">Tiempo de decisión</span><span><%= conversacion.respuestas?.tiempo || "No especificado" %></span></div>
-      <div><span class="resumen-etiqueta">Visita</span><span><%= conversacion.visita_agendada ? `Agendada — ${conversacion.fecha_visita_iso} ${conversacion.hora_visita_pendiente || ""}` : "No agendada" %></span></div>
       <div><span class="resumen-etiqueta">Asesor a cargo</span><span><%= leadCrm.asesor_id ? (asesores.find((a) => a.id === leadCrm.asesor_id)?.nombre || "—") : "Sin asignar" %></span></div>
       <div>
         <span class="resumen-etiqueta">Valor de venta</span>
         <input type="text" id="campo-valor-venta-conversacion" class="campo-valor-venta" data-telefono="<%= telefono %>" value="<%= leadCrm.valor_venta || "" %>" placeholder="$ —" />
       </div>
+      <div><span class="resumen-etiqueta">Uso</span><span><%= conversacion.respuestas?.uso || "No especificado" %></span></div>
+      <div><span class="resumen-etiqueta">Visita</span><span><%= conversacion.visita_agendada ? `Agendada — ${conversacion.fecha_visita_iso} ${conversacion.hora_visita_pendiente || ""}` : "No agendada" %></span></div>
     </div>
+
+    <form id="form-reagendar-conversacion" class="form-reagendar form-reagendar-conversacion oculta" data-telefono="<%= telefono %>">
+      <label>Fecha <input type="date" name="fechaISO" required /></label>
+      <label>Hora <input type="text" name="hora" placeholder="ej. 10:00 a.m." required /></label>
+      <button type="submit" class="boton">Guardar nueva fecha</button>
+    </form>
 
     <div class="panel-herramientas">
       <div class="panel-asistente">
@@ -124,11 +136,6 @@
         </form>
       <% } else { %>
         <button id="boton-intervenir" class="boton">Tomar control de esta conversación</button>
-      <% } %>
-      <% if (usuario.rol === "admin") { %>
-        <button id="boton-eliminar-lead" class="boton boton-peligro" data-telefono="<%= telefono %>" title="Lo mueve a la sección de Eliminados — no borra el historial de WhatsApp, y se puede restaurar en cualquier momento">
-          Eliminar lead
-        </button>
       <% } %>
     </div>
   </main>

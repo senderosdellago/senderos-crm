@@ -388,11 +388,14 @@ router.post("/etapas/renombrar", requiereAdmin, async (req, res) => {
 // desde la página de Eliminados.
 router.post("/acciones/eliminar-lead", requiereAdmin, async (req, res) => {
   try {
-    const { producto: slug, telefono } = req.body;
+    const { producto: slug, telefono, motivo } = req.body;
     if (!slug || !telefono) return res.status(400).json({ error: "Falta 'producto' o 'telefono'" });
+    if (!motivo || !motivo.trim()) {
+      return res.status(400).json({ error: "Debes indicar el motivo de la eliminación" });
+    }
 
-    await marcarLeadEliminado(slug, telefono);
-    await registrarEvento(slug, telefono, "lead_eliminado", { por: req.session.usuario.nombre });
+    await marcarLeadEliminado(slug, telefono, motivo.trim());
+    await registrarEvento(slug, telefono, "lead_eliminado", { por: req.session.usuario.nombre, motivo: motivo.trim() });
     emitirNovedad(req, slug, telefono);
     res.json({ ok: true });
   } catch (error) {

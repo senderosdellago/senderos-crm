@@ -287,6 +287,11 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
 }
 .panel-resumen > div { display: flex; flex-direction: column; gap: 2px; }
 .resumen-etiqueta { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
+.resumen-acciones { flex-direction: row !important; align-items: center; gap: 8px; }
+.resumen-acciones .boton { padding: 6px 12px; font-size: 13px; }
+.form-reagendar-conversacion { display: flex; gap: 10px; align-items: flex-end; background: #fff; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+.form-reagendar-conversacion label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: #555; }
+.form-reagendar-conversacion input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
 
 .tabla-calendario { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
 .filtro-etapa-contenedor { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 14px; }

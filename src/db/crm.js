@@ -68,7 +68,8 @@ export async function asegurarEsquema() {
       ADD COLUMN IF NOT EXISTS visita_resultado_en TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS valor_venta NUMERIC,
       ADD COLUMN IF NOT EXISTS nombre_override TEXT,
-      ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMPTZ;
+      ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS eliminado_motivo TEXT;
   `);
 
   await pool.query(`
@@ -118,6 +119,7 @@ export async function asegurarEsquema() {
   await sembrarEtapasIniciales();
   await migrarEtapasV2();
   await migrarEtapasV3();
+  await migrarEtapasV4();
 
   listo = true;
 }
@@ -288,6 +290,76 @@ async function migrarEtapasV3() {
   }
 }
 
+// Migración puntual V4: reubica "Pendiente reprogramar visita" ANTES de
+// "Visita agendada" (migrarEtapasV3 la había puesto después). Funciona sin
+// importar si V3 ya corrió en producción o no — si la etapa ya existe pero
+// en la posición vieja, la reordena; si por algún motivo no existiera
+// todavía, la crea directo en la posición correcta. Idempotente: si ya está
+// en el orden 3, no hace nada.
+async function migrarEtapasV4() {
+  for (const producto of productos) {
+    const filas = await pool.query("SELECT id, nombre, orden FROM etapas WHERE producto = $1", [
+      producto.slug,
+    ]);
+    if (filas.rows.length === 0) continue;
+
+    const pendiente = filas.rows.find((f) => f.nombre === "Pendiente reprogramar visita");
+    if (pendiente && pendiente.orden === 3) continue; // ya en la posición correcta
+
+    const cliente = await pool.connect();
+    try {
+      await cliente.query("BEGIN");
+
+      // Paso 1: mover TODO lo de orden >= 3 (sin tocar las especiales 90/91)
+      // a un rango temporal — incluida la propia "Pendiente reprogramar
+      // visita" si ya existía, para poder reordenar todo limpio desde cero.
+      await cliente.query(
+        "UPDATE etapas SET orden = orden + 1000 WHERE producto = $1 AND orden >= 3 AND orden < 90",
+        [producto.slug]
+      );
+
+      if (!pendiente) {
+        // No debería pasar (migrarEtapasV3 ya la crea antes que esta
+        // corra), pero por seguridad: si no existiera, se crea directo en
+        // la posición nueva.
+        await cliente.query(
+          `INSERT INTO etapas (producto, nombre, orden, porcentaje)
+           VALUES ($1, 'Pendiente reprogramar visita', 3, 35)
+           ON CONFLICT (producto, orden) DO NOTHING`,
+          [producto.slug]
+        );
+      }
+
+      // Paso 2: bajar del rango temporal a los valores finales según
+      // MAPA_ETAPAS_ESTANDAR (ya actualizado con la nueva posición).
+      const filasTemporales = await cliente.query(
+        "SELECT id, nombre, orden FROM etapas WHERE producto = $1 AND orden >= 1000",
+        [producto.slug]
+      );
+      for (const fila of filasTemporales.rows) {
+        const objetivo = MAPA_ETAPAS_ESTANDAR[fila.nombre];
+        if (objetivo) {
+          await cliente.query("UPDATE etapas SET orden = $1, porcentaje = $2 WHERE id = $3", [
+            objetivo.orden,
+            objetivo.porcentaje,
+            fila.id,
+          ]);
+        } else {
+          await cliente.query("UPDATE etapas SET orden = orden - 1000 WHERE id = $1", [fila.id]);
+        }
+      }
+
+      await cliente.query("COMMIT");
+      console.log(`[Migración V4] "Pendiente reprogramar visita" reubicada antes de "Visita agendada" para "${producto.slug}".`);
+    } catch (error) {
+      await cliente.query("ROLLBACK");
+      console.error(`[Migración V4] Error reubicando etapas de "${producto.slug}":`, error);
+    } finally {
+      cliente.release();
+    }
+  }
+}
+
 // Mapa compartido nombre → { orden, porcentaje } para el pipeline estándar.
 // Lo usan tanto la siembra inicial (producto nuevo) como la migración de
 // productos que ya tenían etapas de la versión anterior (ver migrarEtapasV2
@@ -295,8 +367,8 @@ async function migrarEtapasV3() {
 const MAPA_ETAPAS_ESTANDAR = {
   Lead: { orden: 1, porcentaje: 10 },
   Contacto: { orden: 2, porcentaje: 20 },
-  "Visita agendada": { orden: 3, porcentaje: 40 },
-  "Pendiente reprogramar visita": { orden: 4, porcentaje: 35 },
+  "Pendiente reprogramar visita": { orden: 3, porcentaje: 35 },
+  "Visita agendada": { orden: 4, porcentaje: 40 },
   "Visita realizada": { orden: 5, porcentaje: 60 },
   Negociación: { orden: 6, porcentaje: 80 },
   Separación: { orden: 7, porcentaje: 100 },
@@ -610,18 +682,20 @@ export async function listarTelefonosEliminados(producto) {
 // CRM ni siquiera tiene permiso de escritura para tocar (ver productoDb.js,
 // es de solo lectura). Esto únicamente saca el lead de las pantallas
 // activas del CRM; queda visible en la sección de Eliminados y se puede
-// restaurar en cualquier momento.
-export async function marcarLeadEliminado(producto, telefono) {
+// restaurar en cualquier momento. `motivo` es obligatorio — se valida en la
+// ruta también, pero aquí se guarda tal cual para quedar como registro
+// auditable de por qué se eliminó cada lead.
+export async function marcarLeadEliminado(producto, telefono, motivo) {
   await asegurarLeadCrm(producto, telefono);
   await pool.query(
-    "UPDATE leads_crm SET eliminado_en = now(), actualizado_en = now() WHERE producto = $1 AND telefono = $2",
-    [producto, telefono]
+    "UPDATE leads_crm SET eliminado_en = now(), eliminado_motivo = $1, actualizado_en = now() WHERE producto = $2 AND telefono = $3",
+    [motivo, producto, telefono]
   );
 }
 
 export async function restaurarLead(producto, telefono) {
   await pool.query(
-    "UPDATE leads_crm SET eliminado_en = NULL, actualizado_en = now() WHERE producto = $1 AND telefono = $2",
+    "UPDATE leads_crm SET eliminado_en = NULL, eliminado_motivo = NULL, actualizado_en = now() WHERE producto = $1 AND telefono = $2",
     [producto, telefono]
   );
 }

@@ -316,17 +316,24 @@ if (botonGuardarNotas) {
 const botonEliminarLead = document.getElementById("boton-eliminar-lead");
 if (botonEliminarLead) {
   botonEliminarLead.addEventListener("click", async () => {
-    const confirmado = confirm(
-      "¿Eliminar este lead?\n\nSe mueve a la sección de Eliminados y desaparece de Bandeja, Embudo y Oportunidades. El historial de WhatsApp NO se borra — se puede restaurar en cualquier momento desde Eliminados."
-    );
-    if (!confirmado) return;
+    // Motivo obligatorio: sigue preguntando hasta que escriba algo, o hasta
+    // que cancele explícitamente (Cancelar en el prompt, o dejarlo vacío y
+    // no insistir — en ese caso simplemente no se elimina nada).
+    let motivo = null;
+    while (motivo === null || motivo.trim() === "") {
+      motivo = window.prompt(
+        "¿Por qué estás eliminando este lead? (obligatorio)\n\nSe mueve a la sección de Eliminados — no borra el historial de WhatsApp, y se puede restaurar en cualquier momento."
+      );
+      if (motivo === null) return; // canceló el prompt, no se elimina nada
+      if (motivo.trim() === "") alert("Tienes que escribir un motivo para poder eliminar el lead.");
+    }
 
     botonEliminarLead.disabled = true;
     try {
       const respuesta = await fetch("/acciones/eliminar-lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ producto: PRODUCTO, telefono: TELEFONO }),
+        body: JSON.stringify({ producto: PRODUCTO, telefono: TELEFONO, motivo: motivo.trim() }),
       });
       if (!respuesta.ok) throw new Error("No se pudo eliminar el lead");
       alert("Lead eliminado. Puedes restaurarlo desde la sección de Eliminados.");
@@ -334,6 +341,36 @@ if (botonEliminarLead) {
     } catch (error) {
       alert(error.message);
       botonEliminarLead.disabled = false;
+    }
+  });
+}
+
+// ============ Reagendar visita (desde la propia conversación) ============
+const botonAbrirReagendar = document.getElementById("boton-abrir-reagendar");
+const formReagendar = document.getElementById("form-reagendar-conversacion");
+if (botonAbrirReagendar && formReagendar) {
+  botonAbrirReagendar.addEventListener("click", () => {
+    formReagendar.classList.toggle("oculta");
+  });
+
+  formReagendar.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const fechaISO = formReagendar.querySelector('[name="fechaISO"]').value;
+    const hora = formReagendar.querySelector('[name="hora"]').value;
+    const boton = formReagendar.querySelector('button[type="submit"]');
+    boton.disabled = true;
+
+    try {
+      const respuesta = await fetch("/acciones/reagendar-visita", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto: PRODUCTO, telefono: TELEFONO, fechaISO, hora }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo reagendar la visita");
+      window.location.reload();
+    } catch (error) {
+      alert(error.message);
+      boton.disabled = false;
     }
   });
 }
