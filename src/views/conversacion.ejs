@@ -49,7 +49,7 @@
         <input type="text" id="campo-valor-venta-conversacion" class="campo-valor-venta" data-telefono="<%= telefono %>" value="<%= leadCrm.valor_venta || "" %>" placeholder="$ —" />
       </div>
       <div><span class="resumen-etiqueta">Uso</span><span><%= conversacion.respuestas?.uso || "No especificado" %></span></div>
-      <div><span class="resumen-etiqueta">Visita</span><span><%= conversacion.visita_agendada ? `Agendada — ${conversacion.fecha_visita_iso} ${conversacion.hora_visita_pendiente || ""}` : "No agendada" %></span></div>
+      <div><span class="resumen-etiqueta">Visita</span><span><%= conversacion.visita_agendada ? `Agendada — ${visitaFechaCorta} ${conversacion.hora_visita_pendiente || ""}` : "No agendada" %></span></div>
     </div>
 
     <form id="form-reagendar-conversacion" class="form-reagendar form-reagendar-conversacion oculta" data-telefono="<%= telefono %>">
@@ -110,18 +110,47 @@
 
     <div id="lista-mensajes" class="lista-mensajes" data-producto="<%= productoActual.slug %>" data-telefono="<%= telefono %>">
       <%
+        // Misma lógica que public/js/conversacion.js:detectarMediaEnMensaje
+        // — duplicada aquí porque este bloque es el primer render (del
+        // servidor); las actualizaciones en vivo por socket las pinta el JS.
+        // El bot guarda las fotos/videos/documentos que manda como texto
+        // con la URL real en su propia línea (ver etiquetaMediaHistorial en
+        // el bot) — antes esto no quedaba registrado en ningún lado.
+        function detectarMediaEnMensajeEjs(contenido) {
+          const match = (contenido || "").match(/(https?:\/\/\S+)/);
+          if (!match) return null;
+          const url = match[0];
+          const texto = contenido.replace(url, "").trim();
+          const extension = url.split(".").pop().toLowerCase().split("?")[0];
+          if (["jpg", "jpeg", "png", "gif", "webp"].includes(extension)) return { tipo: "imagen", url, texto };
+          if (["mp4", "webm", "mov", "ogg"].includes(extension)) return { tipo: "video", url, texto };
+          if (extension === "pdf") return { tipo: "documento", url, texto };
+          return null;
+        }
         let diaAnterior = null;
         (conversacion.historial || []).forEach((m) => {
           const fecha = m.timestamp ? new Date(m.timestamp) : null;
           const diaActual = fecha ? fecha.toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "long", year: "numeric" }) : null;
           const mostrarSeparador = diaActual && diaActual !== diaAnterior;
           if (mostrarSeparador) diaAnterior = diaActual;
+          const media = detectarMediaEnMensajeEjs(m.content);
       %>
         <% if (mostrarSeparador) { %>
           <div class="separador-dia"><span><%= diaActual %></span></div>
         <% } %>
         <div class="burbuja burbuja-<%= m.role %>">
-          <span class="burbuja-texto"><%= m.content %></span>
+          <% if (media?.texto) { %>
+            <span class="burbuja-texto"><%= media.texto %></span>
+          <% } else if (!media) { %>
+            <span class="burbuja-texto"><%= m.content %></span>
+          <% } %>
+          <% if (media?.tipo === "imagen") { %>
+            <a href="<%= media.url %>" target="_blank" rel="noopener"><img src="<%= media.url %>" class="burbuja-imagen" alt="Imagen enviada al cliente" loading="lazy" /></a>
+          <% } else if (media?.tipo === "video") { %>
+            <video controls preload="metadata" class="burbuja-video"><source src="<%= media.url %>" /></video>
+          <% } else if (media?.tipo === "documento") { %>
+            <a href="<%= media.url %>" target="_blank" rel="noopener" class="burbuja-documento">📄 Ver documento</a>
+          <% } %>
           <span class="burbuja-hora"><%= fecha ? fecha.toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "numeric", minute: "2-digit" }) : "hora no registrada" %></span>
         </div>
       <% }) %>

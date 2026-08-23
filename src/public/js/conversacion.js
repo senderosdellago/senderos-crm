@@ -47,7 +47,7 @@ function pintarMensajes(historial) {
       return `
         ${separador}
         <div class="burbuja burbuja-${m.role}">
-          <span class="burbuja-texto">${escaparHtml(m.content)}</span>
+          ${contenidoDeMensaje(m.content)}
           <span class="burbuja-hora">${horaTexto}</span>
         </div>
       `;
@@ -56,10 +56,52 @@ function pintarMensajes(historial) {
   lista.scrollTop = lista.scrollHeight;
 }
 
+// El bot guarda las fotos/videos/documentos que manda como texto con la URL
+// real en su propia línea (ver etiquetaMediaHistorial en el bot) — antes
+// esto no se guardaba de ninguna forma, así que el CRM no mostraba ni
+// rastro de que se había enviado algo así. Esta función detecta esa URL
+// por su extensión y arma una imagen/video/link real en vez de mostrar el
+// mensaje como texto plano con una URL suelta.
+function detectarMediaEnMensaje(contenido) {
+  const match = (contenido || "").match(/(https?:\/\/\S+)/);
+  if (!match) return null;
+  const url = match[0];
+  const texto = contenido.replace(url, "").trim();
+  const extension = url.split(".").pop().toLowerCase().split("?")[0];
+  if (["jpg", "jpeg", "png", "gif", "webp"].includes(extension)) return { tipo: "imagen", url, texto };
+  if (["mp4", "webm", "mov", "ogg"].includes(extension)) return { tipo: "video", url, texto };
+  if (extension === "pdf") return { tipo: "documento", url, texto };
+  return null;
+}
+
+function contenidoDeMensaje(contenido) {
+  const media = detectarMediaEnMensaje(contenido);
+  const textoHtml = media?.texto
+    ? `<span class="burbuja-texto">${escaparHtml(media.texto)}</span>`
+    : media
+    ? ""
+    : `<span class="burbuja-texto">${escaparHtml(contenido)}</span>`;
+
+  if (media?.tipo === "imagen") {
+    return `${textoHtml}<a href="${escaparAtributo(media.url)}" target="_blank" rel="noopener"><img src="${escaparAtributo(media.url)}" class="burbuja-imagen" alt="Imagen enviada al cliente" loading="lazy" /></a>`;
+  }
+  if (media?.tipo === "video") {
+    return `${textoHtml}<video controls preload="metadata" class="burbuja-video"><source src="${escaparAtributo(media.url)}" /></video>`;
+  }
+  if (media?.tipo === "documento") {
+    return `${textoHtml}<a href="${escaparAtributo(media.url)}" target="_blank" rel="noopener" class="burbuja-documento">📄 Ver documento</a>`;
+  }
+  return textoHtml;
+}
+
 function escaparHtml(texto) {
   const div = document.createElement("div");
   div.textContent = texto;
   return div.innerHTML;
+}
+
+function escaparAtributo(texto) {
+  return escaparHtml(texto).replace(/"/g, "&quot;");
 }
 
 const botonIntervenir = document.getElementById("boton-intervenir");
