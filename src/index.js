@@ -15,6 +15,7 @@ import rutasDashboard from "./routes/dashboard.js";
 import rutasAcciones from "./routes/acciones.js";
 import rutasAsistente from "./routes/asistente.js";
 import rutasWebhook from "./routes/webhook.js";
+import rutasCotizador from "./routes/cotizador.js";
 
 dotenv.config();
 
@@ -64,6 +65,7 @@ app.use(requiereLogin, rutasBandeja);
 app.use(requiereLogin, rutasDashboard);
 app.use(requiereLogin, rutasAcciones);
 app.use(requiereLogin, rutasAsistente);
+app.use(requiereLogin, rutasCotizador);
 
 io.on("connection", (socket) => {
   socket.on("unirse", ({ producto }) => {

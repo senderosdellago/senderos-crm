@@ -20,6 +20,7 @@
       <% if (usuario.rol === "admin") { %>
         <a href="/eliminados?producto=<%= productoActual.slug %>">Eliminados</a>
       <% } %>
+      <a href="/cotizador" target="_blank">Cotizador</a>
     </nav>
     <div class="encabezado-usuario">
       <span><%= usuario.nombre %></span>
@@ -34,11 +35,11 @@
     <h2 class="titulo-seccion">Próximas (<%= visitasProximas.length %>)</h2>
     <table class="tabla-calendario">
       <thead>
-        <tr><th>Nombre</th><th>Teléfono</th><th>Fecha</th><th>Hora</th><th>Asesor</th><th></th></tr>
+        <tr><th>Nombre</th><th>Teléfono</th><th>Fecha</th><th>Hora</th><th>Asesor</th><th>Contactado (admin)</th><th></th></tr>
       </thead>
       <tbody>
         <% if (visitasProximas.length === 0) { %>
-          <tr><td colspan="6" class="texto-discreto">No hay visitas próximas.</td></tr>
+          <tr><td colspan="7" class="texto-discreto">No hay visitas próximas.</td></tr>
         <% } %>
         <% visitasProximas.forEach((v) => { %>
           <tr data-telefono="<%= v.telefono %>">
@@ -46,14 +47,34 @@
             <td><%= v.telefono %></td>
             <td><%= v.fechaCorta %></td>
             <td><%= v.hora_visita_pendiente || "—" %></td>
-            <td><%= v.asesor_nombre || "Sin asignar" %></td>
+            <td>
+              <% if (usuario.rol === "admin") { %>
+                <select class="selector-asesor-fila" data-telefono="<%= v.telefono %>">
+                  <option value="">Sin asignar</option>
+                  <% usuariosActivos.forEach((a) => { %>
+                    <option value="<%= a.id %>" <%= v.asesor_id === a.id ? "selected" : "" %>><%= a.nombre %></option>
+                  <% }) %>
+                </select>
+              <% } else { %>
+                <%= v.asesor_nombre || "Sin asignar" %>
+              <% } %>
+            </td>
+            <td>
+              <input
+                type="checkbox"
+                class="check-contactado-admin"
+                data-telefono="<%= v.telefono %>"
+                <%= v.contactadoAdmin ? "checked" : "" %>
+                <%= usuario.rol === "admin" ? "" : "disabled" %>
+              />
+            </td>
             <td class="celda-acciones">
               <a class="boton boton-secundario" href="/conversacion/<%= productoActual.slug %>/<%= v.telefono %>">Ver</a>
               <button class="boton boton-secundario boton-abrir-reagendar" data-telefono="<%= v.telefono %>">Reagendar</button>
             </td>
           </tr>
           <tr class="fila-reagendar oculta" data-telefono-form="<%= v.telefono %>">
-            <td colspan="6">
+            <td colspan="7">
               <form class="form-reagendar" data-telefono="<%= v.telefono %>">
                 <label>Fecha <input type="date" name="fechaISO" required /></label>
                 <label>Hora <input type="text" name="hora" placeholder="ej. 10:00 a.m." required /></label>
@@ -68,11 +89,11 @@
     <h2 class="titulo-seccion" style="margin-top:28px">Para confirmar resultado (<%= visitasPorConfirmar.length %>)</h2>
     <table class="tabla-calendario">
       <thead>
-        <tr><th>Nombre</th><th>Teléfono</th><th>Fecha</th><th>Hora</th><th>Asesor</th><th></th></tr>
+        <tr><th>Nombre</th><th>Teléfono</th><th>Fecha</th><th>Hora</th><th>Asesor</th><th>Contactado (admin)</th><th></th></tr>
       </thead>
       <tbody>
         <% if (visitasPorConfirmar.length === 0) { %>
-          <tr><td colspan="6" class="texto-discreto">No hay visitas pendientes de confirmar.</td></tr>
+          <tr><td colspan="7" class="texto-discreto">No hay visitas pendientes de confirmar.</td></tr>
         <% } %>
         <% visitasPorConfirmar.forEach((v) => { %>
           <tr data-telefono="<%= v.telefono %>">
@@ -80,7 +101,27 @@
             <td><%= v.telefono %></td>
             <td><%= v.fechaCorta %></td>
             <td><%= v.hora_visita_pendiente || "—" %></td>
-            <td><%= v.asesor_nombre || "Sin asignar" %></td>
+            <td>
+              <% if (usuario.rol === "admin") { %>
+                <select class="selector-asesor-fila" data-telefono="<%= v.telefono %>">
+                  <option value="">Sin asignar</option>
+                  <% usuariosActivos.forEach((a) => { %>
+                    <option value="<%= a.id %>" <%= v.asesor_id === a.id ? "selected" : "" %>><%= a.nombre %></option>
+                  <% }) %>
+                </select>
+              <% } else { %>
+                <%= v.asesor_nombre || "Sin asignar" %>
+              <% } %>
+            </td>
+            <td>
+              <input
+                type="checkbox"
+                class="check-contactado-admin"
+                data-telefono="<%= v.telefono %>"
+                <%= v.contactadoAdmin ? "checked" : "" %>
+                <%= usuario.rol === "admin" ? "" : "disabled" %>
+              />
+            </td>
             <td class="celda-acciones">
               <button class="boton boton-visita-resultado" data-telefono="<%= v.telefono %>" data-resultado="asistio">Sí asistió</button>
               <button class="boton boton-secundario boton-visita-resultado" data-telefono="<%= v.telefono %>" data-resultado="no_asistio">No asistió</button>
@@ -88,7 +129,7 @@
             </td>
           </tr>
           <tr class="fila-reagendar oculta" data-telefono-form="<%= v.telefono %>">
-            <td colspan="6">
+            <td colspan="7">
               <form class="form-reagendar" data-telefono="<%= v.telefono %>">
                 <label>Fecha <input type="date" name="fechaISO" required /></label>
                 <label>Hora <input type="text" name="hora" placeholder="ej. 10:00 a.m." required /></label>
