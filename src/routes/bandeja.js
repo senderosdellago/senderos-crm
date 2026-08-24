@@ -12,6 +12,18 @@ import {
 } from "../db/crm.js";
 import { requiereAdmin } from "../middleware/auth.js";
 
+// Mismo formato usado en todo el CRM para fechas de visita: "viernes 22
+// agosto" — sin año, sin guiones ISO. Copiado de routes/dashboard.js (no
+// hay un módulo de utilidades compartido todavía entre rutas).
+function formatearFechaCorta(fechaISO) {
+  if (!fechaISO) return "";
+  const [anio, mes, dia] = fechaISO.split("-").map(Number);
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia, 12));
+  const diaSemana = fecha.toLocaleDateString("es-CO", { timeZone: "America/Bogota", weekday: "long" });
+  const mesNombre = fecha.toLocaleDateString("es-CO", { timeZone: "America/Bogota", month: "long" });
+  return `${diaSemana} ${dia} ${mesNombre}`;
+}
+
 const router = Router();
 
 // Un asesor (rol != admin) solo ve lo que el admin le asignó. Mismo
@@ -124,6 +136,7 @@ router.get("/conversacion/:producto/:telefono", async (req, res) => {
       // Oportunidades. Antes esta página mostraba el nombre crudo del bot
       // sin importar si alguien ya lo había corregido en el CRM.
       nombreLead: leadCrm?.nombre_override || conversacion.respuestas?.nombre || null,
+      visitaFechaCorta: formatearFechaCorta(conversacion.fecha_visita_iso),
       conversacion,
       leadCrm,
       etapas,
