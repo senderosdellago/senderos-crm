@@ -183,6 +183,7 @@ function organizarVisitas(visitas, mapaCrm, usuario) {
       visita_resultado: overlay?.visita_resultado || null,
       asesor_id: overlay?.asesor_id || null,
       asesor_nombre: overlay?.asesor_nombre || null,
+      contactadoAdmin: overlay?.contactado_admin || false,
       dia_semana: diaDeLaSemana(v.fecha_visita_iso),
       fechaCorta: formatearFechaCorta(v.fecha_visita_iso),
     };
@@ -338,21 +339,24 @@ router.get("/dashboard/visitas", async (req, res) => {
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
-    const [leadsCrm, visitasCrudas, telefonosEliminados] = await Promise.all([
+    const usuario = req.session.usuario;
+    const [leadsCrm, visitasCrudas, telefonosEliminados, usuariosActivos] = await Promise.all([
       listarLeadsCrm(slug),
       listarVisitasAgendadas(slug),
       listarTelefonosEliminados(slug),
+      usuario.rol === "admin" ? listarUsuariosActivos() : Promise.resolve([]),
     ]);
     const visitas = visitasCrudas.filter((v) => !telefonosEliminados.has(v.telefono));
     const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
-    const { proximas, porConfirmar } = organizarVisitas(visitas, mapaCrm, req.session.usuario);
+    const { proximas, porConfirmar } = organizarVisitas(visitas, mapaCrm, usuario);
 
     res.render("dashboard-visitas", {
       productos,
       productoActual: producto,
-      usuario: req.session.usuario,
+      usuario,
       visitasProximas: proximas,
       visitasPorConfirmar: porConfirmar,
+      usuariosActivos,
     });
   } catch (error) {
     console.error("Error cargando visitas:", error);
