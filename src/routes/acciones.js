@@ -397,6 +397,16 @@ router.post("/acciones/eliminar-lead", requiereAdmin, async (req, res) => {
 
     await marcarLeadEliminado(slug, telefono, motivo.trim());
     await registrarEvento(slug, telefono, "lead_eliminado", { por: req.session.usuario.nombre, motivo: motivo.trim() });
+
+    // Cancela también el evento real en Google Calendar, si el lead tenía
+    // una visita agendada — antes esto no pasaba, así que la visita seguía
+    // apareciendo en el calendario aunque el lead ya se hubiera eliminado.
+    // Si falla (ej. el bot está caído, o el evento ya no existía), no se
+    // bloquea la eliminación del lead — solo se registra el error.
+    llamarBot(slug, "/interno/cancelar-visita", { telefono }).catch((err) =>
+      console.error("Error cancelando visita en el calendario al eliminar el lead:", err)
+    );
+
     emitirNovedad(req, slug, telefono);
     res.json({ ok: true });
   } catch (error) {
