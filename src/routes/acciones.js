@@ -11,6 +11,7 @@ import {
   crearTarea,
   completarTarea,
   guardarMetaMensual,
+  actualizarAccesoBrujula,
   marcarLeadEliminado,
   restaurarLead,
 } from "../db/crm.js";
@@ -415,6 +416,22 @@ router.post("/acciones/restaurar-lead", requiereAdmin, async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error("Error restaurando lead:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// SOLO admin — da o quita acceso a Brújula a un usuario puntual. Es un
+// permiso individual, no depende del rol (a diferencia de casi todo lo
+// demás en el CRM) — por eso vive aparte de asignar-asesor o meta-mensual.
+router.post("/acciones/actualizar-acceso-brujula", requiereAdmin, async (req, res) => {
+  try {
+    const { usuarioId, tieneAcceso } = req.body;
+    if (!usuarioId) return res.status(400).json({ error: "Falta 'usuarioId'" });
+
+    await actualizarAccesoBrujula(usuarioId, !!tieneAcceso);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error actualizando acceso a Brújula:", error);
     res.status(500).json({ error: error.message });
   }
 });

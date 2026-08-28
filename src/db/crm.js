@@ -5,6 +5,7 @@
 
 import pg from "pg";
 import { productos } from "../config/productos.js";
+import { brujulaSemilla } from "../config/brujula-semilla.js";
 
 const { Pool } = pg;
 
@@ -31,6 +32,9 @@ export async function asegurarEsquema() {
 
   await pool.query(`
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS meta_mensual NUMERIC;
+  `);
+  await pool.query(`
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS acceso_brujula BOOLEAN NOT NULL DEFAULT false;
   `);
 
   await pool.query(`
@@ -116,10 +120,25 @@ export async function asegurarEsquema() {
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_tareas_pendientes ON tareas (producto, completada, fecha);`);
 
+  // Brújula: sistema de seguimiento de compromisos (dashboard + hitos +
+  // matriz de tareas). Todo el estado vive como un solo JSON por producto
+  // — igual que como funcionaba de artifact en claude.ai, solo que ahora
+  // persiste en Postgres (el disco de Railway se borra en cada deploy, no
+  // servía para esto). Se siembra una sola vez con sembrarBrujulaInicial.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS brujula_estado (
+      id SERIAL PRIMARY KEY,
+      producto TEXT NOT NULL UNIQUE,
+      datos JSONB NOT NULL,
+      actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
   await sembrarEtapasIniciales();
   await migrarEtapasV2();
   await migrarEtapasV3();
   await migrarEtapasV4();
+  await sembrarBrujulaInicial("senderos", brujulaSemilla);
 
   listo = true;
 }
@@ -400,6 +419,48 @@ async function sembrarEtapasIniciales() {
       );
     }
   }
+}
+
+// Siembra el estado inicial de Brújula UNA sola vez — si ya hay datos
+// guardados para este producto, nunca los pisa (así el equipo puede seguir
+// editando desde la página sin que un reinicio del servidor les borre
+// nada). `datosIniciales` son las 43 tareas reales que ya existían en el
+// Artifact de claude.ai antes de migrar (ver config/brujula-semilla.js).
+async function sembrarBrujulaInicial(producto, datosIniciales) {
+  const existente = await pool.query("SELECT id FROM brujula_estado WHERE producto = $1", [producto]);
+  if (existente.rows.length > 0) return;
+  await pool.query("INSERT INTO brujula_estado (producto, datos) VALUES ($1, $2)", [
+    producto,
+    JSON.stringify(datosIniciales),
+  ]);
+}
+
+// ============ BRÚJULA (seguimiento de compromisos) ============
+
+export async function obtenerEstadoBrujula(producto) {
+  await asegurarEsquema();
+  const resultado = await pool.query("SELECT datos FROM brujula_estado WHERE producto = $1", [producto]);
+  return resultado.rows[0]?.datos || null;
+}
+
+// Reemplaza el estado completo — la página manda el JSON entero en cada
+// guardado (mismo comportamiento que tenía con el Artifact de claude.ai),
+// así que aquí simplemente se sobreescribe, sin fusionar campo por campo.
+export async function guardarEstadoBrujula(producto, datos) {
+  await pool.query(
+    `INSERT INTO brujula_estado (producto, datos, actualizado_en)
+     VALUES ($1, $2, now())
+     ON CONFLICT (producto) DO UPDATE SET datos = $2, actualizado_en = now()`,
+    [producto, JSON.stringify(datos)]
+  );
+}
+
+// Da o quita acceso a Brújula a un usuario puntual (SOLO admin, se valida
+// en la ruta). El acceso a Brújula NO depende del rol (admin/asesor) como
+// el resto del CRM — es un permiso individual, porque solo un subconjunto
+// específico de asesores debe verla, no todos.
+export async function actualizarAccesoBrujula(usuarioId, tieneAcceso) {
+  await pool.query("UPDATE usuarios SET acceso_brujula = $1 WHERE id = $2", [!!tieneAcceso, usuarioId]);
 }
 
 export async function registrarEvento(producto, telefono, tipo, detalle = null) {
@@ -713,7 +774,7 @@ export async function guardarNotas(producto, telefono, notas) {
 export async function listarUsuariosActivos() {
   await asegurarEsquema();
   const resultado = await pool.query(
-    "SELECT id, nombre, email, rol, meta_mensual FROM usuarios WHERE activo = true ORDER BY nombre ASC"
+    "SELECT id, nombre, email, rol, meta_mensual, acceso_brujula FROM usuarios WHERE activo = true ORDER BY nombre ASC"
   );
   return resultado.rows;
 }

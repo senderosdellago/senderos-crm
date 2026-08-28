@@ -15,10 +15,15 @@
     <nav class="nav-principal">
       <a href="/dashboard?producto=<%= productoActual.slug %>">Dashboard</a>
       <a href="/dashboard/embudo?producto=<%= productoActual.slug %>">Embudo</a>
-      <a href="/dashboard/velocidad?producto=<%= productoActual.slug %>">Velocidad</a>
+      <% if (usuario.rol === "admin") { %>
+        <a href="/dashboard/velocidad?producto=<%= productoActual.slug %>">Velocidad</a>
+      <% } %>
       <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
       <a href="/eliminados?producto=<%= productoActual.slug %>" class="activo">Eliminados</a>
       <a href="/cotizador" target="_blank">Cotizador</a>
+      <% if (usuario.accesoBrujula) { %>
+        <a href="/brujula" target="_blank">Brújula</a>
+      <% } %>
     </nav>
     <div class="encabezado-usuario">
       <span><%= usuario.nombre %></span>
@@ -30,7 +35,8 @@
     <h1 class="titulo-pagina">Leads eliminados (<%= leadsEliminados.length %>)</h1>
     <p class="texto-discreto">
       Estos leads no aparecen en Bandeja, Embudo ni Oportunidades. El historial de WhatsApp con el cliente sigue intacto —
-      eliminar aquí solo los saca de las pantallas activas del CRM. Se pueden restaurar en cualquier momento.
+      eliminar aquí solo los saca de las pantallas activas del CRM.
+      <% if (usuario.rol === "admin") { %>Se pueden restaurar en cualquier momento.<% } %>
     </p>
     <table class="tabla-calendario">
       <thead>
@@ -41,7 +47,7 @@
           <th>Motivo</th>
           <th>Asesor</th>
           <th>Eliminado</th>
-          <th></th>
+          <% if (usuario.rol === "admin") { %><th></th><% } %>
         </tr>
       </thead>
       <tbody>
@@ -56,7 +62,9 @@
             <td><%= lead.eliminado_motivo || "—" %></td>
             <td><%= lead.asesor_nombre || "Sin asignar" %></td>
             <td><%= new Date(lead.eliminado_en).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "short", year: "numeric" }) %></td>
-            <td><button class="boton boton-secundario boton-restaurar-lead" data-telefono="<%= lead.telefono %>">Restaurar</button></td>
+            <% if (usuario.rol === "admin") { %>
+              <td><button class="boton boton-secundario boton-restaurar-lead" data-telefono="<%= lead.telefono %>">Restaurar</button></td>
+            <% } %>
           </tr>
         <% }) %>
       </tbody>

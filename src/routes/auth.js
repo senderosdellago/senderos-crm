@@ -33,6 +33,13 @@ router.post("/login", async (req, res) => {
       nombre: usuario.nombre,
       email: usuario.email,
       rol: usuario.rol,
+      // Se guarda en la sesión (igual que "rol") solo para decidir si se
+      // muestra el link "Brújula" en el menú — el acceso REAL a /brujula y
+      // /api/brujula siempre se valida contra la base de datos en cada
+      // request (ver requiereAccesoBrujula en routes/brujula.js), así que
+      // si el admin cambia el permiso, la próxima vez que esa persona
+      // vuelva a iniciar sesión el menú ya refleja el cambio correcto.
+      accesoBrujula: usuario.rol === "admin" || usuario.acceso_brujula === true,
     };
     res.redirect("/dashboard");
   } catch (error) {

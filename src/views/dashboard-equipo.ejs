@@ -12,12 +12,15 @@
     <nav class="nav-principal">
       <a href="/dashboard?producto=<%= productoActual.slug %>" class="activo">Dashboard</a>
       <a href="/dashboard/embudo?producto=<%= productoActual.slug %>">Embudo</a>
-      <a href="/dashboard/velocidad?producto=<%= productoActual.slug %>">Velocidad</a>
-      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
       <% if (usuario.rol === "admin") { %>
-        <a href="/eliminados?producto=<%= productoActual.slug %>">Eliminados</a>
+        <a href="/dashboard/velocidad?producto=<%= productoActual.slug %>">Velocidad</a>
       <% } %>
+      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
+      <a href="/eliminados?producto=<%= productoActual.slug %>">Eliminados</a>
       <a href="/cotizador" target="_blank">Cotizador</a>
+      <% if (usuario.accesoBrujula) { %>
+        <a href="/brujula" target="_blank">Brújula</a>
+      <% } %>
     </nav>
     <div class="encabezado-usuario">
       <span><%= usuario.nombre %></span>
@@ -28,11 +31,11 @@
   <main class="contenedor-dashboard">
     <a class="enlace-volver" href="/dashboard?producto=<%= productoActual.slug %>">← Volver al dashboard</a>
     <h1 class="titulo-pagina">Equipo — metas mensuales</h1>
-    <p class="texto-discreto">La meta se usa para la barra de progreso de "Cierres Esperados" en el dashboard de cada vendedor.</p>
+    <p class="texto-discreto">La meta se usa para la barra de progreso de "Cierres Esperados" en el dashboard de cada vendedor. El acceso a Brújula es un permiso individual — actívalo solo para quien deba ver el seguimiento de compromisos del proyecto.</p>
 
     <table class="tabla-calendario">
       <thead>
-        <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Meta mensual (COP)</th></tr>
+        <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Meta mensual (COP)</th><th>Acceso a Brújula</th></tr>
       </thead>
       <tbody>
         <% usuarios.forEach((u) => { %>
@@ -42,6 +45,13 @@
             <td><%= u.rol %></td>
             <td>
               <input type="text" class="campo-meta-mensual" data-usuario-id="<%= u.id %>" value="<%= u.meta_mensual || "" %>" placeholder="$ —" />
+            </td>
+            <td>
+              <% if (u.rol === "admin") { %>
+                <span class="texto-discreto">Siempre (admin)</span>
+              <% } else { %>
+                <input type="checkbox" class="check-acceso-brujula" data-usuario-id="<%= u.id %>" <%= u.acceso_brujula ? "checked" : "" %> />
+              <% } %>
             </td>
           </tr>
         <% }) %>

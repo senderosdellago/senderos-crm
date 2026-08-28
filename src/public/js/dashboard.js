@@ -478,3 +478,26 @@ document.addEventListener("submit", async (evento) => {
     boton.disabled = false;
   }
 });
+
+// ============ Acceso a Brújula por persona (página /dashboard/equipo) ============
+document.addEventListener("change", async (evento) => {
+  const casilla = evento.target.closest(".check-acceso-brujula");
+  if (!casilla) return;
+
+  const usuarioId = casilla.dataset.usuarioId;
+  const valorAnterior = !casilla.checked;
+  casilla.disabled = true;
+  try {
+    const respuesta = await fetch("/acciones/actualizar-acceso-brujula", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuarioId, tieneAcceso: casilla.checked }),
+    });
+    if (!respuesta.ok) throw new Error("No se pudo guardar");
+  } catch (error) {
+    alert(error.message);
+    casilla.checked = valorAnterior;
+  } finally {
+    casilla.disabled = false;
+  }
+});

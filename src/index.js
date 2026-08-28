@@ -16,6 +16,7 @@ import rutasAcciones from "./routes/acciones.js";
 import rutasAsistente from "./routes/asistente.js";
 import rutasWebhook from "./routes/webhook.js";
 import rutasCotizador from "./routes/cotizador.js";
+import rutasBrujula from "./routes/brujula.js";
 
 dotenv.config();
 
@@ -66,6 +67,7 @@ app.use(requiereLogin, rutasDashboard);
 app.use(requiereLogin, rutasAcciones);
 app.use(requiereLogin, rutasAsistente);
 app.use(requiereLogin, rutasCotizador);
+app.use(requiereLogin, rutasBrujula);
 
 io.on("connection", (socket) => {
   socket.on("unirse", ({ producto }) => {

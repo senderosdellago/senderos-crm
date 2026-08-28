@@ -16,15 +16,18 @@
     <nav class="nav-principal">
       <a href="/dashboard?producto=<%= productoActual.slug %>" class="activo">Dashboard</a>
       <a href="/dashboard/embudo?producto=<%= productoActual.slug %>">Embudo</a>
-      <a href="/dashboard/velocidad?producto=<%= productoActual.slug %>">Velocidad</a>
-      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
       <% if (usuario.rol === "admin") { %>
-        <a href="/eliminados?producto=<%= productoActual.slug %>">Eliminados</a>
+        <a href="/dashboard/velocidad?producto=<%= productoActual.slug %>">Velocidad</a>
       <% } %>
+      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
+      <a href="/eliminados?producto=<%= productoActual.slug %>">Eliminados</a>
       <% if (usuario.rol === "admin") { %>
         <a href="/dashboard/equipo?producto=<%= productoActual.slug %>">Equipo</a>
       <% } %>
       <a href="/cotizador" target="_blank">Cotizador</a>
+      <% if (usuario.accesoBrujula) { %>
+        <a href="/brujula" target="_blank">Brújula</a>
+      <% } %>
     </nav>
     <div class="encabezado-usuario">
       <span><%= usuario.nombre %> <% if (usuario.rol === "admin") { %>(admin)<% } %></span>

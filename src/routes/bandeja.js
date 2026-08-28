@@ -10,7 +10,6 @@ import {
   listarTelefonosEliminados,
   listarLeadsEliminados,
 } from "../db/crm.js";
-import { requiereAdmin } from "../middleware/auth.js";
 
 // Mismo formato usado en todo el CRM para fechas de visita: "viernes 22
 // agosto" — sin año, sin guiones ISO. Copiado de routes/dashboard.js (no
@@ -169,16 +168,19 @@ router.get("/api/conversacion/:producto/:telefono", async (req, res) => {
   }
 });
 
-// SOLO admin — lista de leads eliminados, con opción de restaurar. No
-// requiere filtrarPorAsesor: eliminar/restaurar es una acción exclusiva de
-// administración, no algo que un asesor gestione por su cuenta.
-router.get("/eliminados", requiereAdmin, async (req, res) => {
+// Ver eliminados ya no es exclusivo de admin — un asesor puede ver los
+// leads eliminados que tenía asignados (filtrado, igual que en Bandeja y
+// Embudo — nunca ve los de otro asesor). Restaurar/eliminar sí sigue
+// siendo solo de admin (ver /acciones/eliminar-lead y /acciones/restaurar-lead
+// en acciones.js, y el botón de Restaurar oculto para no-admin en la vista).
+router.get("/eliminados", async (req, res) => {
   try {
     const slug = req.query.producto || "senderos";
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
-    const leadsEliminados = await listarLeadsEliminados(slug);
+    const leadsEliminadosCrudos = await listarLeadsEliminados(slug);
+    const leadsEliminados = filtrarPorAsesor(leadsEliminadosCrudos, req.session.usuario);
 
     res.render("eliminados", {
       productos,

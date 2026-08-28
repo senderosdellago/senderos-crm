@@ -14,7 +14,7 @@ import {
   obtenerSecuenciaEtapas,
   listarTelefonosEliminados,
 } from "../db/crm.js";
-import { requiereLogin } from "../middleware/auth.js";
+import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
 
 const router = Router();
 router.use(requiereLogin);
@@ -676,21 +676,22 @@ function calcularMetricasVelocidad(filas, etapasOrdenadas, mapaNombresAsesor = n
 // conversión etapa-a-etapa, tiempo promedio por etapa, y lista de leads
 // estancados. Un asesor solo ve SUS leads (mismo candado que el resto del
 // sistema); un admin ve el panorama completo.
-router.get("/dashboard/velocidad", async (req, res) => {
+// SOLO admin — antes cualquier asesor podía entrar y ver su propio embudo
+// filtrado, pero se decidió que este panel quede exclusivo del
+// administrador (igual que Equipo).
+router.get("/dashboard/velocidad", requiereAdmin, async (req, res) => {
   try {
     const slug = req.query.producto || "senderos";
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
     const usuario = req.session.usuario;
-    const [filasCrudas, etapas, usuariosActivos] = await Promise.all([
+    const [filas, etapas, usuariosActivos] = await Promise.all([
       obtenerSecuenciaEtapas(slug),
       listarEtapas(slug),
-      usuario.rol === "admin" ? listarUsuariosActivos() : Promise.resolve([]),
+      listarUsuariosActivos(),
     ]);
 
-    const filas =
-      usuario.rol === "admin" ? filasCrudas : filasCrudas.filter((f) => f.asesor_id === usuario.id);
     const mapaNombresAsesor = new Map(usuariosActivos.map((u) => [u.id, u.nombre]));
 
     const { tiempoPromedioPorEtapa, conversionEtapaAEtapa, leadsEstancados } = calcularMetricasVelocidad(
