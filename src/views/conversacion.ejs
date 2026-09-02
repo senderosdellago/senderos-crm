@@ -50,6 +50,12 @@
       </div>
       <div><span class="resumen-etiqueta">Uso</span><span><%= conversacion.respuestas?.uso || "No especificado" %></span></div>
       <div><span class="resumen-etiqueta">Visita</span><span><%= conversacion.visita_agendada ? `Agendada — ${visitaFechaCorta} ${conversacion.hora_visita_pendiente || ""}` : "No agendada" %></span></div>
+      <% if (conversacion.respuestas?.telefono_real) { %>
+        <div>
+          <span class="resumen-etiqueta">Teléfono real (compartido)</span>
+          <span><%= conversacion.respuestas.telefono_real %> <span class="texto-discreto">— usar para llamar y confirmar</span></span>
+        </div>
+      <% } %>
     </div>
 
     <form id="form-reagendar-conversacion" class="form-reagendar form-reagendar-conversacion oculta" data-telefono="<%= telefono %>">

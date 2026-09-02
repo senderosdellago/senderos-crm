@@ -47,7 +47,12 @@
         <% visitasProximas.forEach((v) => { %>
           <tr data-telefono="<%= v.telefono %>">
             <td><input type="text" class="campo-nombre-editable" data-telefono="<%= v.telefono %>" value="<%= v.nombre || '' %>" placeholder="Sin nombre" /></td>
-            <td><%= v.telefono %></td>
+            <td>
+              <%= v.telefono %>
+              <% if (v.telefono_real) { %>
+                <br /><span class="texto-discreto">📞 <%= v.telefono_real %></span>
+              <% } %>
+            </td>
             <td><%= v.fechaCorta %></td>
             <td><%= v.hora_visita_pendiente || "—" %></td>
             <td>
@@ -101,7 +106,12 @@
         <% visitasPorConfirmar.forEach((v) => { %>
           <tr data-telefono="<%= v.telefono %>">
             <td><input type="text" class="campo-nombre-editable" data-telefono="<%= v.telefono %>" value="<%= v.nombre || '' %>" placeholder="Sin nombre" /></td>
-            <td><%= v.telefono %></td>
+            <td>
+              <%= v.telefono %>
+              <% if (v.telefono_real) { %>
+                <br /><span class="texto-discreto">📞 <%= v.telefono_real %></span>
+              <% } %>
+            </td>
             <td><%= v.fechaCorta %></td>
             <td><%= v.hora_visita_pendiente || "—" %></td>
             <td>

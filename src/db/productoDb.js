@@ -122,6 +122,7 @@ export async function listarVisitasAgendadas(slug) {
     `SELECT
        telefono,
        respuestas->>'nombre' AS nombre,
+       respuestas->>'telefono_real' AS telefono_real,
        clasificacion,
        tipo_visita,
        fecha_visita_iso,
