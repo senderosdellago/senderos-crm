@@ -35,7 +35,7 @@
 
     <table class="tabla-calendario">
       <thead>
-        <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Meta mensual (COP)</th><th>Acceso a Brújula</th></tr>
+        <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Meta mensual (COP)</th><th>Teléfono WhatsApp</th><th>Acceso a Brújula</th><th>Último acceso</th></tr>
       </thead>
       <tbody>
         <% usuarios.forEach((u) => { %>
@@ -47,16 +47,27 @@
               <input type="text" class="campo-meta-mensual" data-usuario-id="<%= u.id %>" value="<%= u.meta_mensual || "" %>" placeholder="$ —" />
             </td>
             <td>
+              <input type="text" class="campo-telefono-vendedor" data-usuario-id="<%= u.id %>" value="<%= u.telefono || "" %>" placeholder="Ej: 573001234567" />
+            </td>
+            <td>
               <% if (u.rol === "admin") { %>
                 <span class="texto-discreto">Siempre (admin)</span>
               <% } else { %>
                 <input type="checkbox" class="check-acceso-brujula" data-usuario-id="<%= u.id %>" <%= u.acceso_brujula ? "checked" : "" %> />
               <% } %>
             </td>
+            <td class="texto-discreto">
+              <% if (u.ultimo_acceso) { %>
+                <%= new Date(u.ultimo_acceso).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) %>
+              <% } else { %>
+                Nunca
+              <% } %>
+            </td>
           </tr>
         <% }) %>
       </tbody>
     </table>
+    <p class="texto-discreto" style="margin-top:8px">El teléfono de WhatsApp se usa para el recordatorio diario automático de leads (negociación, visitas próximas, etc.) — usa el formato completo con indicativo de país, sin espacios ni signos (ej: 573001234567).</p>
   </main>
 
   <script>

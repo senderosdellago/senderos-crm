@@ -33,7 +33,10 @@
 
   <main class="contenedor-conversacion">
     <div class="panel-resumen">
-      <div><span class="resumen-etiqueta">Nombre</span><span><%= nombreLead || "No capturado" %></span></div>
+      <div>
+        <span class="resumen-etiqueta">Nombre</span>
+        <input type="text" id="campo-nombre-conversacion" class="campo-nombre-editable" data-telefono="<%= telefono %>" value="<%= nombreLead || "" %>" placeholder="No capturado" />
+      </div>
       <div><span class="resumen-etiqueta">Clasificación</span><span class="etiqueta etiqueta-<%= conversacion.clasificacion %>"><%= conversacion.clasificacion %></span></div>
       <div class="resumen-acciones">
         <button id="boton-abrir-reagendar" class="boton boton-secundario">Reagendar</button>

@@ -188,6 +188,38 @@ if (selectorEtapa) {
   });
 }
 
+// ============ Nombre editable (misma idea que en /dashboard/visitas) ============
+const campoNombre = document.getElementById("campo-nombre-conversacion");
+if (campoNombre) {
+  campoNombre.addEventListener("blur", async () => {
+    const valorAnterior = campoNombre.dataset.valorAnterior ?? campoNombre.defaultValue;
+    const valorNuevo = campoNombre.value.trim();
+    if (valorNuevo === (campoNombre.dataset.valorAnterior ?? campoNombre.defaultValue)) return;
+
+    campoNombre.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/editar-campo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          producto: PRODUCTO,
+          telefono: TELEFONO,
+          campo: "nombre_override",
+          valor: valorNuevo || null,
+        }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo guardar el nombre");
+      campoNombre.dataset.valorAnterior = valorNuevo;
+    } catch (error) {
+      console.error("Error guardando nombre:", error);
+      campoNombre.value = valorAnterior;
+      alert("No se pudo guardar el nombre. Intenta de nuevo.");
+    } finally {
+      campoNombre.disabled = false;
+    }
+  });
+}
+
 const campoValorVenta = document.getElementById("campo-valor-venta-conversacion");
 if (campoValorVenta) {
   campoValorVenta.addEventListener("blur", async () => {

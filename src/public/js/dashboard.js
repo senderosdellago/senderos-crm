@@ -195,6 +195,15 @@ document.addEventListener("click", async (evento) => {
     return;
   }
 
+  // ============ Abrir/cerrar "+ Tarea" (página /dashboard/visitas) ============
+  const botonAbrirTareaVisita = evento.target.closest(".boton-abrir-tarea-visita");
+  if (botonAbrirTareaVisita) {
+    const telefono = botonAbrirTareaVisita.dataset.telefono;
+    const filaForm = document.querySelector(`.fila-tarea-visita[data-telefono-form-tarea="${telefono}"]`);
+    if (filaForm) filaForm.classList.toggle("oculta");
+    return;
+  }
+
   // ============ Completar tarea (página /dashboard/tareas) ============
   const botonCompletarTarea = evento.target.closest(".boton-completar-tarea");
   if (botonCompletarTarea) {
@@ -478,6 +487,83 @@ document.addEventListener("submit", async (evento) => {
     boton.disabled = false;
   }
 });
+
+// ============ "Otro..." en el selector de concepto de "+ Tarea" (página /dashboard/visitas) ============
+document.addEventListener("change", (evento) => {
+  const selector = evento.target.closest(".form-tarea-visita select[name='concepto']");
+  if (!selector) return;
+  const campoOtro = selector.closest(".form-tarea-visita").querySelector('[name="conceptoOtro"]');
+  const esOtro = selector.value === "otro";
+  campoOtro.classList.toggle("oculta", !esOtro);
+  if (esOtro) campoOtro.focus();
+});
+
+// ============ Crear tarea desde "+ Tarea" (página /dashboard/visitas) ============
+document.addEventListener("submit", async (evento) => {
+  const form = evento.target.closest(".form-tarea-visita");
+  if (!form) return;
+  evento.preventDefault();
+
+  const telefono = form.dataset.telefono;
+  const selector = form.querySelector('[name="concepto"]');
+  const concepto = selector.value === "otro" ? form.querySelector('[name="conceptoOtro"]').value.trim() : selector.value;
+  const fecha = form.querySelector('[name="fecha"]').value;
+  if (!concepto || !fecha) {
+    alert("Elige el concepto de la tarea y una fecha.");
+    return;
+  }
+
+  const boton = form.querySelector('button[type="submit"]');
+  boton.disabled = true;
+  try {
+    const respuesta = await fetch("/acciones/tareas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ producto: PRODUCTO, telefono, concepto, fecha }),
+    });
+    if (!respuesta.ok) throw new Error("No se pudo crear la tarea");
+    form.closest(".fila-tarea-visita").classList.add("oculta");
+    form.reset();
+    alert("Tarea creada.");
+  } catch (error) {
+    console.error("Error creando tarea desde visitas:", error);
+    alert("No se pudo crear la tarea. Intenta de nuevo.");
+  } finally {
+    boton.disabled = false;
+  }
+});
+
+// ============ Teléfono de WhatsApp del vendedor editable (página /dashboard/equipo, solo admin) ============
+document.addEventListener(
+  "blur",
+  async (evento) => {
+    const campo = evento.target.closest?.(".campo-telefono-vendedor");
+    if (!campo) return;
+
+    const usuarioId = campo.dataset.usuarioId;
+    const valorAnterior = campo.dataset.valorAnterior ?? campo.defaultValue;
+    const valorNuevo = campo.value.trim();
+    if (valorNuevo === (campo.dataset.valorAnterior ?? campo.defaultValue)) return;
+
+    campo.disabled = true;
+    try {
+      const respuesta = await fetch("/acciones/telefono-vendedor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuarioId: Number(usuarioId), telefono: valorNuevo || null }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo guardar el teléfono");
+      campo.dataset.valorAnterior = valorNuevo;
+    } catch (error) {
+      console.error("Error guardando teléfono del vendedor:", error);
+      campo.value = valorAnterior;
+      alert("No se pudo guardar el teléfono. Intenta de nuevo.");
+    } finally {
+      campo.disabled = false;
+    }
+  },
+  true
+);
 
 // ============ Acceso a Brújula por persona (página /dashboard/equipo) ============
 document.addEventListener("change", async (evento) => {

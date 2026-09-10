@@ -36,6 +36,15 @@ export async function asegurarEsquema() {
   await pool.query(`
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS acceso_brujula BOOLEAN NOT NULL DEFAULT false;
   `);
+  // Teléfono de WhatsApp del vendedor (para el recordatorio diario automático,
+  // ver services/resumenVendedores.js) y fecha/hora del último inicio de
+  // sesión exitoso (se actualiza en routes/auth.js en cada login).
+  await pool.query(`
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS telefono TEXT;
+  `);
+  await pool.query(`
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS ultimo_acceso TIMESTAMPTZ;
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS etapas (
@@ -774,9 +783,22 @@ export async function guardarNotas(producto, telefono, notas) {
 export async function listarUsuariosActivos() {
   await asegurarEsquema();
   const resultado = await pool.query(
-    "SELECT id, nombre, email, rol, meta_mensual, acceso_brujula FROM usuarios WHERE activo = true ORDER BY nombre ASC"
+    "SELECT id, nombre, email, rol, meta_mensual, acceso_brujula, telefono, ultimo_acceso FROM usuarios WHERE activo = true ORDER BY nombre ASC"
   );
   return resultado.rows;
+}
+
+// SOLO admin puede fijar el teléfono de WhatsApp de un vendedor (se valida en
+// la ruta). Se usa para el recordatorio diario automático — sin este dato no
+// hay a dónde mandarle el resumen (ver services/resumenVendedores.js).
+export async function guardarTelefonoUsuario(usuarioId, telefono) {
+  await pool.query("UPDATE usuarios SET telefono = $1 WHERE id = $2", [telefono || null, usuarioId]);
+}
+
+// Se llama en cada login exitoso (routes/auth.js) — así Equipo puede mostrar
+// cuándo entró cada colaborador por última vez, admin incluido.
+export async function registrarUltimoAcceso(usuarioId) {
+  await pool.query("UPDATE usuarios SET ultimo_acceso = now() WHERE id = $1", [usuarioId]);
 }
 
 export async function obtenerMetaMensual(usuarioId) {

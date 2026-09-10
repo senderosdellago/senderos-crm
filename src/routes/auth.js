@@ -1,6 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcrypt";
-import { pool, asegurarEsquema } from "../db/crm.js";
+import { pool, asegurarEsquema, registrarUltimoAcceso } from "../db/crm.js";
 
 const router = Router();
 
@@ -41,6 +41,11 @@ router.post("/login", async (req, res) => {
       // vuelva a iniciar sesión el menú ya refleja el cambio correcto.
       accesoBrujula: usuario.rol === "admin" || usuario.acceso_brujula === true,
     };
+    // No bloquea el login si falla — es un dato informativo para Equipo, no
+    // algo de lo que dependa poder entrar al CRM.
+    registrarUltimoAcceso(usuario.id).catch((error) =>
+      console.error("Error registrando último acceso:", error)
+    );
     res.redirect("/dashboard");
   } catch (error) {
     console.error("Error en login:", error);

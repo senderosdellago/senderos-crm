@@ -79,6 +79,7 @@
             <td class="celda-acciones">
               <a class="boton boton-secundario" href="/conversacion/<%= productoActual.slug %>/<%= v.telefono %>">Ver</a>
               <button class="boton boton-secundario boton-abrir-reagendar" data-telefono="<%= v.telefono %>">Reagendar</button>
+              <button class="boton boton-secundario boton-abrir-tarea-visita" data-telefono="<%= v.telefono %>">+ Tarea</button>
             </td>
           </tr>
           <tr class="fila-reagendar oculta" data-telefono-form="<%= v.telefono %>">
@@ -87,6 +88,23 @@
                 <label>Fecha <input type="date" name="fechaISO" required /></label>
                 <label>Hora <input type="time" name="hora" required /></label>
                 <button type="submit" class="boton">Guardar</button>
+              </form>
+            </td>
+          </tr>
+          <tr class="fila-tarea-visita oculta" data-telefono-form-tarea="<%= v.telefono %>">
+            <td colspan="7">
+              <form class="form-tarea-visita" data-telefono="<%= v.telefono %>">
+                <select name="concepto" required>
+                  <option value="Enviar propuesta económica">Enviar propuesta económica</option>
+                  <option value="Enviar borrador promesa compraventa">Enviar borrador promesa compraventa</option>
+                  <option value="Llamar nuevamente">Llamar nuevamente</option>
+                  <option value="Enviar un mensaje de seguimiento">Enviar un mensaje de seguimiento</option>
+                  <option value="Reagendar visita">Reagendar visita</option>
+                  <option value="otro">Otro...</option>
+                </select>
+                <input type="text" name="conceptoOtro" placeholder="Describe la tarea..." class="oculta" />
+                <label>Fecha <input type="date" name="fecha" required /></label>
+                <button type="submit" class="boton">Crear tarea</button>
               </form>
             </td>
           </tr>
@@ -139,6 +157,7 @@
               <button class="boton boton-visita-resultado" data-telefono="<%= v.telefono %>" data-resultado="asistio">Sí asistió</button>
               <button class="boton boton-secundario boton-visita-resultado" data-telefono="<%= v.telefono %>" data-resultado="no_asistio">No asistió</button>
               <button class="boton boton-secundario boton-abrir-reagendar" data-telefono="<%= v.telefono %>">Reagendar</button>
+              <button class="boton boton-secundario boton-abrir-tarea-visita" data-telefono="<%= v.telefono %>">+ Tarea</button>
             </td>
           </tr>
           <tr class="fila-reagendar oculta" data-telefono-form="<%= v.telefono %>">
@@ -147,6 +166,23 @@
                 <label>Fecha <input type="date" name="fechaISO" required /></label>
                 <label>Hora <input type="time" name="hora" required /></label>
                 <button type="submit" class="boton">Guardar</button>
+              </form>
+            </td>
+          </tr>
+          <tr class="fila-tarea-visita oculta" data-telefono-form-tarea="<%= v.telefono %>">
+            <td colspan="7">
+              <form class="form-tarea-visita" data-telefono="<%= v.telefono %>">
+                <select name="concepto" required>
+                  <option value="Enviar propuesta económica">Enviar propuesta económica</option>
+                  <option value="Enviar borrador promesa compraventa">Enviar borrador promesa compraventa</option>
+                  <option value="Llamar nuevamente">Llamar nuevamente</option>
+                  <option value="Enviar un mensaje de seguimiento">Enviar un mensaje de seguimiento</option>
+                  <option value="Reagendar visita">Reagendar visita</option>
+                  <option value="otro">Otro...</option>
+                </select>
+                <input type="text" name="conceptoOtro" placeholder="Describe la tarea..." class="oculta" />
+                <label>Fecha <input type="date" name="fecha" required /></label>
+                <button type="submit" class="boton">Crear tarea</button>
               </form>
             </td>
           </tr>

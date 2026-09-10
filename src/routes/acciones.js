@@ -14,6 +14,8 @@ import {
   actualizarAccesoBrujula,
   marcarLeadEliminado,
   restaurarLead,
+  establecerEtapaEspecial,
+  guardarTelefonoUsuario,
 } from "../db/crm.js";
 import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
 
@@ -160,6 +162,21 @@ router.post("/acciones/visita-resultado", async (req, res) => {
       asesor: req.session.usuario.nombre,
       resultado,
     });
+
+    // Si no asistió, el lead pasa automáticamente a "Pendiente reprogramar
+    // visita" — si no, esta etapa nunca se llena sola y el recordatorio
+    // diario a los vendedores (ver services/resumenVendedores.js) siempre
+    // mostraría 0. Reutiliza establecerEtapaEspecial (fuerza la etapa sin
+    // importar el orden actual, igual que hace con Remarketing/No contactar)
+    // — nunca debe tumbar la respuesta principal si falla.
+    if (resultado === "no_asistio") {
+      try {
+        await establecerEtapaEspecial(slug, telefono, "Pendiente reprogramar visita");
+      } catch (errorEtapa) {
+        console.error("Error moviendo a Pendiente reprogramar visita:", errorEtapa);
+      }
+    }
+
     emitirNovedad(req, slug, telefono);
     res.json({ ok: true });
   } catch (error) {
@@ -251,6 +268,23 @@ router.post("/acciones/meta-mensual", requiereAdmin, async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error("Error guardando meta mensual:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// SOLO admin puede fijar el teléfono de WhatsApp de un vendedor — es el
+// número al que le llega el recordatorio diario automático (ver
+// services/resumenVendedores.js). Sin este dato configurado, ese vendedor
+// simplemente no recibe el recordatorio (se salta, no da error).
+router.post("/acciones/telefono-vendedor", requiereAdmin, async (req, res) => {
+  try {
+    const { usuarioId, telefono } = req.body;
+    if (!usuarioId) return res.status(400).json({ error: "Falta 'usuarioId'" });
+
+    await guardarTelefonoUsuario(usuarioId, telefono ? telefono.trim() : null);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error guardando teléfono del vendedor:", error);
     res.status(500).json({ error: error.message });
   }
 });

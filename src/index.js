@@ -6,6 +6,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
+import cron from "node-cron";
 
 import { pool, asegurarEsquema } from "./db/crm.js";
 import { requiereLogin } from "./middleware/auth.js";
@@ -17,6 +18,7 @@ import rutasAsistente from "./routes/asistente.js";
 import rutasWebhook from "./routes/webhook.js";
 import rutasCotizador from "./routes/cotizador.js";
 import rutasBrujula from "./routes/brujula.js";
+import { enviarResumenesDiarios } from "./services/resumenVendedores.js";
 
 dotenv.config();
 
@@ -82,6 +84,19 @@ asegurarEsquema()
     servidorHttp.listen(PORT, () => {
       console.log(`CRM corriendo en puerto ${PORT}`);
     });
+
+    // Recordatorio diario a cada vendedor por WhatsApp — todos los días a
+    // las 8:00 a.m. hora Colombia (ver services/resumenVendedores.js). Si se
+    // quiere otra hora, solo hay que cambiar "0 8 * * *" (minuto hora * * *).
+    cron.schedule(
+      "0 8 * * *",
+      () => {
+        enviarResumenesDiarios().catch((error) =>
+          console.error("[Recordatorio diario] Error general:", error)
+        );
+      },
+      { timezone: "America/Bogota" }
+    );
   })
   .catch((error) => {
     console.error("Error inicializando el esquema de la base de datos:", error);
