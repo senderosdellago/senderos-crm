@@ -812,8 +812,14 @@ function App() {
         html += '<div class="detail-field"><div class="k">Hito vinculado</div><div class="v">' + (hito ? esc(hito.nombre) : '—') + '</div></div>';
         var dep = t.dependeDeId ? findTask(t.dependeDeId) : null;
         html += '<div class="detail-field"><div class="k">Depende de</div><div class="v">' + (dep ? (esc(dep.actividad) + ' (' + estadoInfo(dep.estado).label + ')') : '—') + '</div></div>';
+        if (t.subtareas && t.subtareas.length) {
+          var doneCount = t.subtareas.filter(function (s) { return s.hecho; }).length;
+          html += '<div class="detail-field" style="grid-column:1/-1"><div class="k">Subtareas (' + doneCount + '/' + t.subtareas.length + ')</div><div class="v">' +
+            t.subtareas.map(function (s) { return '<div style="' + (s.hecho ? 'text-decoration:line-through;color:var(--ink-muted)' : '') + '">' + (s.hecho ? '☑' : '☐') + ' ' + esc(s.texto) + '</div>'; }).join("") +
+            '</div></div>';
+        }
         if (t.cantidad != null || t.valorUnitario != null || t.valorEjecutado != null) {
-          html += '<div class="detail-field"><div class="k">Costo</div><div class="v mono">Comprometido ' + fmtMoney(valorComprometido(t)) + ' · Ejecutado ' + fmtMoney(t.valorEjecutado) + '</div></div>';
+          html += '<div class="detail-field"><div class="k">Costo</div><div class="v mono">Total ' + fmtMoney(valorComprometido(t)) + ' · Ejecutado ' + fmtMoney(t.valorEjecutado) + '</div></div>';
         }
         html += '<div class="detail-field" style="grid-column:1/-1"><div class="k">Observación / próxima acción</div>';
         if (ui.writable) {
@@ -846,7 +852,7 @@ function App() {
 
   // ---- Task modal ----
   function blankTaskDraft() {
-    return { id: null, area: state.areas[0] || "", actividad: "", detalle: "", cantidad: "", valorUnitario: "", valorEjecutado: "", fechaInicio: todayISO(), fechaEntrega: "", dueno: "", colaboradores: [], prioridad: "Media", hitoId: "", dependeDeId: "", esRiesgo: false, estado: "PENDIENTE", ultimoSeguimiento: "", observacion: "" };
+    return { id: null, area: state.areas[0] || "", actividad: "", detalle: "", cantidad: "", valorUnitario: "", valorEjecutado: "", fechaInicio: todayISO(), fechaEntrega: "", dueno: "", colaboradores: [], prioridad: "Media", hitoId: "", dependeDeId: "", esRiesgo: false, estado: "PENDIENTE", ultimoSeguimiento: "", observacion: "", subtareas: [] };
   }
   function blankHitoDraft() {
     return { id: null, nombre: "", area: state.areas[0] || "", descripcion: "", fechaObjetivo: "", enRiesgo: false };
@@ -896,6 +902,17 @@ function App() {
     }
     html += '</div>';
 
+    html += '<div class="field"><label>Subtareas / actividades</label><div class="chip-input-box" style="flex-direction:column;align-items:stretch;gap:6px">';
+    (d.subtareas || []).forEach(function (s) {
+      html += '<div style="display:flex;align-items:center;gap:8px">' +
+        '<input type="checkbox" data-action="toggle-subtarea" data-id="' + s.id + '"' + (s.hecho ? " checked" : "") + ' style="width:16px;height:16px;flex:none" />' +
+        '<span style="flex:1;font-size:12.5px' + (s.hecho ? ";text-decoration:line-through;color:var(--ink-muted)" : "") + '">' + esc(s.texto) + '</span>' +
+        '<button type="button" class="icon-btn" data-action="remove-subtarea" data-id="' + s.id + '" title="Eliminar">' + iconX() + '</button>' +
+        '</div>';
+    });
+    html += '<input type="text" placeholder="Escribe una subtarea y Enter…" data-field="subtarea-input" style="border:1px solid var(--border-strong);border-radius:8px;padding:7px 9px;font:inherit;font-size:12.5px;background:var(--surface);color:var(--ink)" />';
+    html += '</div></div>';
+
     html += '<div class="field-row">';
     html += '<div class="field"><label>Hito vinculado</label><select data-field="hitoId"><option value="">Sin hito</option>' + state.hitos.map(function (h) { return '<option value="' + h.id + '"' + (h.id === d.hitoId ? " selected" : "") + '>' + esc(h.nombre) + '</option>'; }).join("") + '</select></div>';
     html += '<div class="field"><label>Depende de</label><select data-field="dependeDeId"><option value="">Ninguna</option>' + state.tasks.filter(function (t) { return t.id !== d.id; }).map(function (t) { return '<option value="' + t.id + '"' + (t.id === d.dependeDeId ? " selected" : "") + '>' + t.no + '. ' + esc(t.actividad) + '</option>'; }).join("") + '</select></div>';
@@ -909,7 +926,7 @@ function App() {
     html += '<div class="field-row four">';
     html += '<div class="field"><label>Cantidad</label><input type="number" data-field="cantidad" value="' + (d.cantidad === "" || d.cantidad == null ? "" : d.cantidad) + '" /></div>';
     html += '<div class="field"><label>Valor unitario</label><input type="number" data-field="valorUnitario" value="' + (d.valorUnitario === "" || d.valorUnitario == null ? "" : d.valorUnitario) + '" /></div>';
-    html += '<div class="field"><label>Comprometido</label><div class="valor-total-hint mono" style="padding-top:8px">' + fmtMoney(vc) + '</div></div>';
+    html += '<div class="field"><label>Total (Comprometido)</label><div class="valor-total-hint mono" id="comprometido-preview" style="padding-top:8px">' + fmtMoney(vc) + '</div></div>';
     html += '<div class="field"><label>Ejecutado</label><input type="number" data-field="valorEjecutado" value="' + (d.valorEjecutado === "" || d.valorEjecutado == null ? "" : d.valorEjecutado) + '" /></div>';
     html += '</div>';
 
@@ -999,6 +1016,7 @@ function App() {
       var draft = JSON.parse(JSON.stringify(task));
       if (draft.hitoId === null || draft.hitoId === undefined) draft.hitoId = "";
       if (draft.dependeDeId === null || draft.dependeDeId === undefined) draft.dependeDeId = "";
+      if (!draft.subtareas) draft.subtareas = [];
       ui.modal = { mode: "edit", draft: draft, confirmDelete: false };
       render(); return;
     }
@@ -1018,6 +1036,17 @@ function App() {
     if (action === "remove-colab") {
       var rn = el.getAttribute("data-name");
       ui.modal.draft.colaboradores = ui.modal.draft.colaboradores.filter(function (p) { return p !== rn; });
+      render(); return;
+    }
+    if (action === "toggle-subtarea") {
+      var stId = el.getAttribute("data-id");
+      var sub = (ui.modal.draft.subtareas || []).filter(function (s) { return s.id === stId; })[0];
+      if (sub) sub.hecho = !sub.hecho;
+      render(); return;
+    }
+    if (action === "remove-subtarea") {
+      var rmId = el.getAttribute("data-id");
+      ui.modal.draft.subtareas = (ui.modal.draft.subtareas || []).filter(function (s) { return s.id !== rmId; });
       render(); return;
     }
     if (action === "ask-delete-task") { ui.modal.confirmDelete = true; render(); return; }
@@ -1079,7 +1108,8 @@ function App() {
         dueno: (d.dueno || "").trim(), colaboradores: d.colaboradores || [],
         prioridad: d.prioridad || "Media", esRiesgo: !!d.esRiesgo,
         hitoId: d.hitoId || null, dependeDeId: d.dependeDeId || null,
-        estado: d.estado, ultimoSeguimiento: d.ultimoSeguimiento || null, observacion: d.observacion || ""
+        estado: d.estado, ultimoSeguimiento: d.ultimoSeguimiento || null, observacion: d.observacion || "",
+        subtareas: d.subtareas || []
       };
       if (isEdit) {
         var t = findTask(d.id);
@@ -1158,7 +1188,16 @@ function App() {
       else if (field === "ultimoSeguimiento") d.ultimoSeguimiento = el.value;
       else if (field === "observacion") d.observacion = el.value;
       else if (field === "colab-input") { return; }
-      if (field === "cantidad" || field === "valorUnitario" || field === "valorEjecutado") { render(); refocus(el); }
+      if (field === "cantidad" || field === "valorUnitario") {
+        // Solo actualiza el texto del Total en vivo, sin re-dibujar el modal.
+        // (Re-dibujar el modal en cada tecla rompía el cursor de los inputs
+        // numéricos y hacía que los dígitos se escribieran al revés.)
+        var totalPreview = document.getElementById("comprometido-preview");
+        if (totalPreview) {
+          var vcLive = (d.cantidad !== "" && d.valorUnitario !== "" && d.cantidad != null && d.valorUnitario != null) ? Number(d.cantidad) * Number(d.valorUnitario) : null;
+          totalPreview.textContent = fmtMoney(vcLive);
+        }
+      }
     }
   }
 
@@ -1182,6 +1221,18 @@ function App() {
       render();
       var again = document.querySelector('[data-field="colab-input"]');
       if (again) again.focus();
+    }
+    if (el.getAttribute && el.getAttribute("data-field") === "subtarea-input" && ev.key === "Enter") {
+      ev.preventDefault();
+      var stVal = el.value.trim();
+      if (stVal) {
+        if (!ui.modal.draft.subtareas) ui.modal.draft.subtareas = [];
+        ui.modal.draft.subtareas.push({ id: uid("st"), texto: stVal, hecho: false });
+      }
+      el.value = "";
+      render();
+      var stAgain = document.querySelector('[data-field="subtarea-input"]');
+      if (stAgain) stAgain.focus();
     }
     if (ev.key === "Escape" && ui.modal) { ui.modal = null; render(); }
   }
