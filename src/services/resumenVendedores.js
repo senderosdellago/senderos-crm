@@ -30,9 +30,11 @@ function fechaISOColombiaEnNDias(n) {
 // Llama al bot para que mande la plantilla APROBADA POR META
 // "recordatorio_diario_asesor" — ya no manda texto libre, porque un asesor
 // casi nunca le ha escrito al bot en las últimas 24h, así que sin plantilla
-// el envío fallaba en silencio. `parametros` va en el mismo orden que las
-// variables {{nombre}}, {{negociacion}}, {{visitas}}, {{link}} de esa
-// plantilla en Meta.
+// el envío fallaba en silencio. `parametros` debe ser un arreglo de
+// { nombre, valor } — `nombre` exacto al nombre de cada variable en Meta
+// ({{nombre}}, {{negociacion}}, {{visitas}}, {{link}}), sin llaves; la API
+// de WhatsApp lo exige porque la plantilla usa variables con nombre, no las
+// viejas {{1}}, {{2}}.
 async function llamarBotEnviarPlantilla(producto, telefono, plantilla, parametros) {
   const botUrl = process.env[producto.botUrlEnvVar];
   const secreto = process.env[producto.secretoEnvVar];
@@ -121,10 +123,10 @@ async function enviarResumenesDeProducto(producto) {
     }
 
     const parametros = [
-      usuario.nombre,
-      String(misNegociaciones.length),
-      String(misVisitas.length),
-      `${CRM_URL}/dashboard`,
+      { nombre: "nombre", valor: usuario.nombre },
+      { nombre: "negociacion", valor: String(misNegociaciones.length) },
+      { nombre: "visitas", valor: String(misVisitas.length) },
+      { nombre: "link", valor: `${CRM_URL}/dashboard` },
     ];
 
     try {
