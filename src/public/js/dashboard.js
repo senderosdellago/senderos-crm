@@ -587,3 +587,26 @@ document.addEventListener("change", async (evento) => {
     casilla.disabled = false;
   }
 });
+
+// ============ Botón "Enviar recordatorio ahora" (página /dashboard/equipo, solo admin) ============
+document.addEventListener("click", async (evento) => {
+  const boton = evento.target.closest("#boton-enviar-recordatorio-diario");
+  if (!boton) return;
+
+  const textoOriginal = boton.textContent;
+  boton.disabled = true;
+  boton.textContent = "Enviando...";
+  try {
+    const respuesta = await fetch("/acciones/enviar-recordatorio-diario", { method: "POST" });
+    if (!respuesta.ok) throw new Error("El servidor respondió con un error");
+    alert(
+      "Listo. Si algún asesor tenía algo que reportar hoy, ya le debió llegar el WhatsApp. Si nadie tenía nada pendiente, no se le mandó nada a nadie — eso es normal."
+    );
+  } catch (error) {
+    console.error("Error disparando recordatorio diario:", error);
+    alert("No se pudo enviar. Revisa los logs de Railway del CRM.");
+  } finally {
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
+});

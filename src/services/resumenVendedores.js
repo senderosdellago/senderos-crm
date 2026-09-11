@@ -14,6 +14,11 @@ import { productos } from "../config/productos.js";
 import { listarLeadsCrm, listarUsuariosActivos, listarTelefonosEliminados } from "../db/crm.js";
 import { listarConversacionesParaTriage, listarVisitasAgendadas } from "../db/productoDb.js";
 
+// Dominio del propio CRM — es el link que va en el {{link}} de la
+// plantilla, para que el asesor entre a ver el detalle completo (el
+// mensaje de WhatsApp solo trae las cifras, no la lista).
+const CRM_URL = process.env.CRM_URL || "https://senderos-crm-production.up.railway.app";
+
 // Mismo truco que en routes/dashboard.js (hoyISOColombia): usar el locale
 // en-CA da el formato YYYY-MM-DD, para comparar contra fecha_visita_iso (que
 // se guarda como texto) sin errores de huso horario.
@@ -22,11 +27,13 @@ function fechaISOColombiaEnNDias(n) {
   return fecha.toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
 }
 
-function formatoLinea(nombre, telefono) {
-  return `• ${nombre || "Sin nombre"} — ${telefono}`;
-}
-
-async function llamarBotEnviarResumen(producto, telefono, mensaje) {
+// Llama al bot para que mande la plantilla APROBADA POR META
+// "recordatorio_diario_asesor" — ya no manda texto libre, porque un asesor
+// casi nunca le ha escrito al bot en las últimas 24h, así que sin plantilla
+// el envío fallaba en silencio. `parametros` va en el mismo orden que las
+// variables {{nombre}}, {{negociacion}}, {{visitas}}, {{link}} de esa
+// plantilla en Meta.
+async function llamarBotEnviarPlantilla(producto, telefono, plantilla, parametros) {
   const botUrl = process.env[producto.botUrlEnvVar];
   const secreto = process.env[producto.secretoEnvVar];
   if (!botUrl || !secreto) {
@@ -35,47 +42,19 @@ async function llamarBotEnviarResumen(producto, telefono, mensaje) {
     );
   }
 
-  const respuesta = await fetch(`${botUrl}/interno/enviar-resumen-vendedor`, {
+  const respuesta = await fetch(`${botUrl}/interno/enviar-plantilla`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Interno-Secret": secreto,
     },
-    body: JSON.stringify({ telefono, mensaje }),
+    body: JSON.stringify({ telefono, plantilla, parametros }),
   });
 
   if (!respuesta.ok) {
     const detalle = await respuesta.text();
     throw new Error(`El bot respondió ${respuesta.status}: ${detalle}`);
   }
-}
-
-function armarMensaje(producto, usuario, misNegociaciones, misVisitas, misVisitaAgendada, misPendienteReprogramar) {
-  const lineas = [`Hola ${usuario.nombre}, este es tu resumen de hoy en ${producto.nombre}:`, ""];
-
-  lineas.push(`En negociación (${misNegociaciones.length})`);
-  if (misNegociaciones.length === 0) {
-    lineas.push("Ninguno por ahora.");
-  } else {
-    for (const l of misNegociaciones) lineas.push(formatoLinea(l.nombre, l.telefono));
-  }
-  lineas.push("");
-
-  lineas.push(`Visitas próximos 2 días (${misVisitas.length})`);
-  if (misVisitas.length === 0) {
-    lineas.push("Ninguna agendada.");
-  } else {
-    for (const v of misVisitas) {
-      const horaTexto = v.hora_visita_pendiente ? ` ${v.hora_visita_pendiente}` : "";
-      lineas.push(`${formatoLinea(v.nombre, v.telefono)} — ${v.fecha_visita_iso}${horaTexto}`);
-    }
-  }
-  lineas.push("");
-
-  lineas.push(`Visita agendada (total): ${misVisitaAgendada}`);
-  lineas.push(`Pendiente reprogramar visita: ${misPendienteReprogramar}`);
-
-  return lineas.join("\n");
 }
 
 async function enviarResumenesDeProducto(producto) {
@@ -133,20 +112,26 @@ async function enviarResumenesDeProducto(producto) {
     const misVisitaAgendada = conteoVisitaAgendada.get(usuario.id) || 0;
     const misPendienteReprogramar = conteoPendienteReprogramar.get(usuario.id) || 0;
 
-    // Nada que reportar hoy: no molestar con un mensaje vacío.
+    // Nada que reportar hoy: no molestar con un mensaje vacío. (Ojo: aunque
+    // "Visita agendada"/"Pendiente reprogramar" no se muestren en el texto
+    // de la plantilla — solo caben 2 cifras — SÍ cuentan para decidir si
+    // vale la pena avisarle hoy; el asesor ve el resto al entrar al link.)
     if (misNegociaciones.length === 0 && misVisitas.length === 0 && misVisitaAgendada === 0 && misPendienteReprogramar === 0) {
       continue;
     }
 
-    const mensaje = armarMensaje(producto, usuario, misNegociaciones, misVisitas, misVisitaAgendada, misPendienteReprogramar);
+    const parametros = [
+      usuario.nombre,
+      String(misNegociaciones.length),
+      String(misVisitas.length),
+      `${CRM_URL}/dashboard`,
+    ];
 
     try {
-      await llamarBotEnviarResumen(producto, usuario.telefono, mensaje);
+      await llamarBotEnviarPlantilla(producto, usuario.telefono, "recordatorio_diario_asesor", parametros);
       console.log(`[Recordatorio diario] Enviado a ${usuario.nombre} (${usuario.telefono}).`);
     } catch (error) {
-      // Un fallo con un vendedor (ej. no le ha escrito al bot en las últimas
-      // 24h, así que WhatsApp exige plantilla aprobada — todavía no la
-      // tenemos, ver pendientes) no debe frenar el resumen de los demás.
+      // Un fallo con un vendedor puntual no debe frenar el resumen de los demás.
       console.error(`[Recordatorio diario] Error enviando a ${usuario.nombre} (${usuario.telefono}):`, error.message);
     }
   }

@@ -18,6 +18,7 @@ import {
   guardarTelefonoUsuario,
 } from "../db/crm.js";
 import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
+import { enviarResumenesDiarios } from "../services/resumenVendedores.js";
 
 const router = Router();
 router.use(requiereLogin);
@@ -476,6 +477,21 @@ router.post("/acciones/actualizar-acceso-brujula", requiereAdmin, async (req, re
     res.json({ ok: true });
   } catch (error) {
     console.error("Error actualizando acceso a Brújula:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// SOLO admin — dispara manualmente el recordatorio diario de todos los
+// asesores (mismo mecanismo que corre solo a las 8am, ver el cron en
+// index.js), sin tener que esperar a esa hora. Sirve para probar cambios y
+// para reenviar si algún día el cron automático falló. No hace nada
+// distinto por producto — enviarResumenesDiarios ya recorre todos.
+router.post("/acciones/enviar-recordatorio-diario", requiereAdmin, async (req, res) => {
+  try {
+    await enviarResumenesDiarios();
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error disparando recordatorio diario manual:", error);
     res.status(500).json({ error: error.message });
   }
 });
