@@ -1,6 +1,13 @@
 import { Router } from "express";
 import { obtenerProducto } from "../config/productos.js";
-import { asegurarLeadCrm, registrarEvento, avanzarEtapaSiCorresponde, establecerEtapaEspecial } from "../db/crm.js";
+import {
+  asegurarLeadCrm,
+  registrarEvento,
+  avanzarEtapaSiCorresponde,
+  establecerEtapaEspecial,
+  asignarAsesor,
+  listarUsuariosActivos,
+} from "../db/crm.js";
 import { obtenerConversacionProducto } from "../db/productoDb.js";
 
 const router = Router();
@@ -65,6 +72,51 @@ router.post("/webhook/:producto", async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error("Error en webhook de producto:", error);
+    res.status(500).json({ error: "Error interno" });
+  }
+});
+
+// El bot llama a esta ruta cuando alguien del equipo (Santiago, Diana o
+// Ana) responde por WhatsApp a una alerta de "visita sin asesor asignado"
+// citando el mensaje de la alerta (ver manejarRespuestaAAlertaEquipo en el
+// bot). Aquí se aplica el cambio real en el CRM: se asigna el asesor
+// indicado al lead del cliente en cuestión.
+router.post("/webhook/:producto/asignar-asesor", async (req, res) => {
+  try {
+    const slug = req.params.producto;
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).json({ error: "Producto no encontrado" });
+
+    const secretoEsperado = process.env[producto.secretoEnvVar];
+    const secretoRecibido = req.headers["x-interno-secret"];
+    if (!secretoEsperado || secretoRecibido !== secretoEsperado) {
+      return res.status(403).json({ error: "No autorizado" });
+    }
+
+    const { telefonoCliente, nombreAsesor } = req.body;
+    if (!telefonoCliente || !nombreAsesor) {
+      return res.status(400).json({ error: "Faltan 'telefonoCliente' o 'nombreAsesor'" });
+    }
+
+    const usuariosActivos = await listarUsuariosActivos();
+    const nombreBuscado = nombreAsesor.trim().toLowerCase();
+    const usuario = usuariosActivos.find((u) => u.nombre?.trim().toLowerCase() === nombreBuscado);
+    if (!usuario) {
+      return res.status(404).json({ error: `No se encontró un asesor activo llamado "${nombreAsesor}"` });
+    }
+
+    await asignarAsesor(slug, telefonoCliente, usuario.id);
+    await registrarEvento(slug, telefonoCliente, "asesor_asignado", {
+      por: `WhatsApp (${usuario.nombre})`,
+      asesorId: usuario.id,
+    });
+
+    const io = req.app.get("io");
+    io.to(`producto:${slug}`).emit("novedad", { producto: slug, telefono: telefonoCliente });
+
+    res.json({ ok: true, asesor: { id: usuario.id, nombre: usuario.nombre } });
+  } catch (error) {
+    console.error("Error asignando asesor vía WhatsApp:", error);
     res.status(500).json({ error: "Error interno" });
   }
 });
