@@ -129,6 +129,25 @@ export async function asegurarEsquema() {
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_tareas_pendientes ON tareas (producto, completada, fecha);`);
 
+  // Registro de qué "toque" de la secuencia de mantenimiento de visitas
+  // (visita_toque_emocional, visita_prueba_social, visita_dia_antes,
+  // visita_dia_de_hoy) ya se le mandó a cada cliente para una visita
+  // puntual — sin esto, el cron diario mandaría el mismo mensaje varias
+  // veces. La fecha de la visita hace parte de la llave: si la visita se
+  // reagenda a otra fecha, la secuencia arranca de nuevo para la fecha
+  // nueva (tiene sentido — es, en la práctica, una visita distinta).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS secuencia_visita_enviada (
+      id SERIAL PRIMARY KEY,
+      producto TEXT NOT NULL,
+      telefono TEXT NOT NULL,
+      fecha_visita TEXT NOT NULL,
+      plantilla TEXT NOT NULL,
+      enviado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (producto, telefono, fecha_visita, plantilla)
+    );
+  `);
+
   // Brújula: sistema de seguimiento de compromisos (dashboard + hitos +
   // matriz de tareas). Todo el estado vive como un solo JSON por producto
   // — igual que como funcionaba de artifact en claude.ai, solo que ahora
@@ -831,5 +850,30 @@ export async function guardarResultadoVisita(producto, telefono, resultado) {
      SET visita_resultado = $1, visita_resultado_en = now(), actualizado_en = now()
      WHERE producto = $2 AND telefono = $3`,
     [resultado, producto, telefono]
+  );
+}
+
+// ============ SECUENCIA DE MANTENIMIENTO DE VISITAS ============
+// Ver services/secuenciaVisitas.js — estas dos funciones solo llevan el
+// registro de qué plantilla ya se le mandó a qué cliente, para una fecha de
+// visita puntual, y evitar reenvíos si el cron corre más de una vez.
+
+export async function yaSeEnvioTouchSecuencia(producto, telefono, fechaVisita, plantilla) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `SELECT 1 FROM secuencia_visita_enviada
+     WHERE producto = $1 AND telefono = $2 AND fecha_visita = $3 AND plantilla = $4`,
+    [producto, telefono, fechaVisita, plantilla]
+  );
+  return resultado.rows.length > 0;
+}
+
+export async function registrarEnvioSecuencia(producto, telefono, fechaVisita, plantilla) {
+  await asegurarEsquema();
+  await pool.query(
+    `INSERT INTO secuencia_visita_enviada (producto, telefono, fecha_visita, plantilla)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (producto, telefono, fecha_visita, plantilla) DO NOTHING`,
+    [producto, telefono, fechaVisita, plantilla]
   );
 }

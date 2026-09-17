@@ -19,6 +19,8 @@ import rutasWebhook from "./routes/webhook.js";
 import rutasCotizador from "./routes/cotizador.js";
 import rutasBrujula from "./routes/brujula.js";
 import { enviarResumenesDiarios } from "./services/resumenVendedores.js";
+import { revisarAsesoresDeVisitasProximas } from "./services/recordatoriosVisita.js";
+import { procesarSecuenciaVisitas } from "./services/secuenciaVisitas.js";
 
 dotenv.config();
 
@@ -93,6 +95,34 @@ asegurarEsquema()
       () => {
         enviarResumenesDiarios().catch((error) =>
           console.error("[Recordatorio diario] Error general:", error)
+        );
+      },
+      { timezone: "America/Bogota" }
+    );
+
+    // Alerta al equipo si una visita de mañana o pasado mañana sigue sin
+    // asesor asignado — mismo horario que el recordatorio diario, para no
+    // agregar otra hora más a la que estar pendiente (ver
+    // services/recordatoriosVisita.js).
+    cron.schedule(
+      "0 8 * * *",
+      () => {
+        revisarAsesoresDeVisitasProximas().catch((error) =>
+          console.error("[Recordatorios] Error general revisando asesores de visitas próximas:", error)
+        );
+      },
+      { timezone: "America/Bogota" }
+    );
+
+    // Secuencia de "mantenimiento del deseo" para visitas agendadas — a las
+    // 7:00 a.m., una hora antes que los demás crons, porque esta misma
+    // corrida es la que manda `visita_dia_de_hoy` a primera hora del día de
+    // la visita (ver services/secuenciaVisitas.js).
+    cron.schedule(
+      "0 7 * * *",
+      () => {
+        procesarSecuenciaVisitas().catch((error) =>
+          console.error("[SecuenciaVisitas] Error general:", error)
         );
       },
       { timezone: "America/Bogota" }
