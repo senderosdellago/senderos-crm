@@ -21,6 +21,7 @@ import rutasBrujula from "./routes/brujula.js";
 import { enviarResumenesDiarios } from "./services/resumenVendedores.js";
 import { revisarAsesoresDeVisitasProximas } from "./services/recordatoriosVisita.js";
 import { procesarSecuenciaVisitas } from "./services/secuenciaVisitas.js";
+import { procesarConfirmacionVisitas } from "./services/confirmacionVisitas.js";
 
 dotenv.config();
 
@@ -123,6 +124,21 @@ asegurarEsquema()
       () => {
         procesarSecuenciaVisitas().catch((error) =>
           console.error("[SecuenciaVisitas] Error general:", error)
+        );
+      },
+      { timezone: "America/Bogota" }
+    );
+
+    // Confirmación de resultado de visita por WhatsApp — todas las noches a
+    // las 7:00 p.m. hora Colombia, revisa las visitas ya pasadas sin
+    // resultado registrado y le pregunta al asesor asignado (ver
+    // services/confirmacionVisitas.js). Si nadie contesta, se vuelve a
+    // preguntar la noche siguiente — así lo pidió Santiago.
+    cron.schedule(
+      "0 19 * * *",
+      () => {
+        procesarConfirmacionVisitas().catch((error) =>
+          console.error("[ConfirmacionVisitas] Error general:", error)
         );
       },
       { timezone: "America/Bogota" }

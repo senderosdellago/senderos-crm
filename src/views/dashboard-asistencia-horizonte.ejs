@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asistencia por anticipación — <%= productoActual.nombre %></title>
+  <link rel="stylesheet" href="/css/estilos.css" />
+</head>
+<body>
+  <header class="encabezado">
+    <div class="encabezado-marca"><img src="/img/logo-senderos.png" alt="Senderos del Lago" class="encabezado-logo" /><strong><%= productoActual.nombre %></strong></div>
+    <nav class="nav-principal">
+      <a href="/dashboard?producto=<%= productoActual.slug %>">Dashboard</a>
+      <a href="/dashboard/embudo?producto=<%= productoActual.slug %>">Embudo</a>
+      <% if (usuario.rol === "admin") { %>
+        <a href="/dashboard/velocidad?producto=<%= productoActual.slug %>">Velocidad</a>
+        <a href="/dashboard/asistencia-horizonte?producto=<%= productoActual.slug %>" class="activo">Asistencia</a>
+      <% } %>
+      <a href="/bandeja?producto=<%= productoActual.slug %>">Bandeja</a>
+      <a href="/eliminados?producto=<%= productoActual.slug %>">Eliminados</a>
+      <a href="/cotizador" target="_blank">Cotizador</a>
+      <% if (usuario.accesoBrujula) { %>
+        <a href="/brujula" target="_blank">Brújula</a>
+      <% } %>
+    </nav>
+    <div class="encabezado-usuario">
+      <span><%= usuario.nombre %></span>
+      <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>
+    </div>
+  </header>
+
+  <main class="contenedor-dashboard">
+    <a class="enlace-volver" href="/dashboard?producto=<%= productoActual.slug %>">← Volver al dashboard</a>
+    <h1 class="titulo-pagina">Asistencia según anticipación del agendamiento</h1>
+    <p class="texto-discreto">Para cada visita agendada, compara cuántos días pasaron entre el momento en que se agendó y la fecha real de la visita, contra si el cliente terminó asistiendo. Sirve para validar si agendar con mucha anticipación baja la tasa de asistencia.</p>
+
+    <table class="tabla-calendario">
+      <thead>
+        <tr>
+          <th>Anticipación</th>
+          <th>Total visitas</th>
+          <th>Asistieron</th>
+          <th>No asistieron</th>
+          <th>Reagendadas</th>
+          <th>Sin resultado registrado</th>
+          <th>Tasa de asistencia</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% filasResumen.forEach((f) => { %>
+          <tr>
+            <td><%= f.etiqueta %></td>
+            <td><%= f.total %></td>
+            <td><%= f.asistio %></td>
+            <td><%= f.noAsistio %></td>
+            <td><%= f.reagendada %></td>
+            <td><%= f.sinRegistrar %></td>
+            <td><%= f.tasaAsistencia != null ? f.tasaAsistencia + "%" : "—" %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <% if (sinDatoDeAgendamiento > 0) { %>
+      <p class="texto-discreto" style="margin-top:12px">
+        <%= sinDatoDeAgendamiento %> visita(s) agendada(s) no se pudieron ubicar en el histórico de etapas (probablemente de antes de que existiera ese seguimiento) — no entran en la tabla de arriba.
+      </p>
+    <% } %>
+
+    <p class="texto-discreto" style="margin-top:8px">"Tasa de asistencia" = asistieron / (asistieron + no asistieron). No incluye reagendadas ni casos sin resultado registrado todavía, porque no tienen un desenlace claro.</p>
+  </main>
+</body>
+</html>

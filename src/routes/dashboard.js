@@ -672,6 +672,92 @@ function calcularMetricasVelocidad(filas, etapasOrdenadas, mapaNombresAsesor = n
   return { tiempoPromedioPorEtapa, conversionEtapaAEtapa, leadsEstancados };
 }
 
+// Análisis de asistencia según cuántos días de anticipación hubo entre el
+// momento en que se agendó la visita (primera vez que el lead entró a la
+// etapa "Visita agendada" — no hay un campo dedicado a "fecha de
+// agendamiento", así que se usa esto como proxy) y la fecha real de la
+// visita. Objetivo: validar con datos reales la hipótesis de que agendar
+// con mucha anticipación baja la tasa de asistencia (la "brecha
+// caliente-fría" — la emoción del momento en que escribió se enfría con
+// los días). Cruza el historial de etapas y el resultado de la visita
+// (ambos en la base del CRM) con la fecha de la visita en sí, que vive en
+// la base del bot (solo lectura).
+const BUCKETS_HORIZONTE = [
+  { clave: "0-1", etiqueta: "0-1 días (mismo día / al otro día)" },
+  { clave: "2-3", etiqueta: "2-3 días" },
+  { clave: "4-7", etiqueta: "4-7 días (hasta una semana)" },
+  { clave: "8+", etiqueta: "8+ días (más de una semana)" },
+];
+
+function bucketParaHorizonte(dias) {
+  if (dias <= 1) return "0-1";
+  if (dias <= 3) return "2-3";
+  if (dias <= 7) return "4-7";
+  return "8+";
+}
+
+function calcularAsistenciaPorHorizonte(filas, etapas, visitasAgendadas, leadsCrm) {
+  const etapaVisita = etapas.find((e) => e.nombre === "Visita agendada");
+
+  // Primera vez que cada teléfono entró a "Visita agendada" — proxy del
+  // momento real en que se agendó (ver comentario de arriba).
+  const mapaAgendadaEn = new Map();
+  if (etapaVisita) {
+    for (const fila of filas) {
+      if (fila.etapa_id !== etapaVisita.id) continue;
+      const actual = mapaAgendadaEn.get(fila.telefono);
+      const entroEn = new Date(fila.entro_en);
+      if (!actual || entroEn < actual) mapaAgendadaEn.set(fila.telefono, entroEn);
+    }
+  }
+
+  const mapaResultado = new Map(leadsCrm.map((l) => [l.telefono, l.visita_resultado]));
+
+  const acumulado = new Map(
+    BUCKETS_HORIZONTE.map((b) => [
+      b.clave,
+      { etiqueta: b.etiqueta, total: 0, asistio: 0, noAsistio: 0, reagendada: 0, sinRegistrar: 0 },
+    ])
+  );
+  let sinDatoDeAgendamiento = 0;
+
+  for (const visita of visitasAgendadas) {
+    if (!visita.fecha_visita_iso) continue;
+    const agendadaEn = mapaAgendadaEn.get(visita.telefono);
+    if (!agendadaEn) {
+      sinDatoDeAgendamiento++;
+      continue;
+    }
+
+    // Mismo truco de en-CA que en resumenVendedores.js: convierte el
+    // timestamp real a la fecha calendario en Bogotá, para comparar días
+    // contra fecha_visita_iso sin errores de huso horario.
+    const fechaAgendadaISO = agendadaEn.toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+    const dias = Math.round(
+      (new Date(`${visita.fecha_visita_iso}T00:00:00Z`) - new Date(`${fechaAgendadaISO}T00:00:00Z`)) / 86400000
+    );
+    const grupo = acumulado.get(bucketParaHorizonte(Math.max(dias, 0)));
+    grupo.total++;
+
+    const resultado = mapaResultado.get(visita.telefono);
+    if (resultado === "asistio") grupo.asistio++;
+    else if (resultado === "no_asistio") grupo.noAsistio++;
+    else if (resultado === "reagendada") grupo.reagendada++;
+    else grupo.sinRegistrar++;
+  }
+
+  const filasResumen = BUCKETS_HORIZONTE.map((b) => {
+    const g = acumulado.get(b.clave);
+    const conResultado = g.asistio + g.noAsistio;
+    return {
+      ...g,
+      tasaAsistencia: conResultado > 0 ? Math.round((g.asistio / conResultado) * 100) : null,
+    };
+  });
+
+  return { filasResumen, sinDatoDeAgendamiento };
+}
+
 // Vista gerencial (admin) / individual (asesor) de la velocidad del embudo:
 // conversión etapa-a-etapa, tiempo promedio por etapa, y lista de leads
 // estancados. Un asesor solo ve SUS leads (mismo candado que el resto del
@@ -711,6 +797,44 @@ router.get("/dashboard/velocidad", requiereAdmin, async (req, res) => {
   } catch (error) {
     console.error("Error cargando velocidad del embudo:", error);
     res.status(500).send("Error cargando el módulo de velocidad");
+  }
+});
+
+// SOLO admin. Reporte puntual para validar con datos reales si agendar con
+// más anticipación baja la tasa de asistencia. Sin link en el menú a
+// propósito — es un análisis de una sola vez, no una pantalla de uso
+// diario; se entra directo por la URL.
+router.get("/dashboard/asistencia-horizonte", requiereAdmin, async (req, res) => {
+  try {
+    const slug = req.query.producto || "senderos";
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).send("Producto no encontrado");
+
+    const usuario = req.session.usuario;
+    const [filas, etapas, visitasAgendadas, leadsCrm] = await Promise.all([
+      obtenerSecuenciaEtapas(slug),
+      listarEtapas(slug),
+      listarVisitasAgendadas(slug),
+      listarLeadsCrm(slug),
+    ]);
+
+    const { filasResumen, sinDatoDeAgendamiento } = calcularAsistenciaPorHorizonte(
+      filas,
+      etapas,
+      visitasAgendadas,
+      leadsCrm
+    );
+
+    res.render("dashboard-asistencia-horizonte", {
+      productos,
+      productoActual: producto,
+      usuario,
+      filasResumen,
+      sinDatoDeAgendamiento,
+    });
+  } catch (error) {
+    console.error("Error calculando asistencia por horizonte:", error);
+    res.status(500).send("Error calculando el análisis de asistencia");
   }
 });
 

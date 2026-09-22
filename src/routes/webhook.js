@@ -7,6 +7,7 @@ import {
   establecerEtapaEspecial,
   asignarAsesor,
   listarUsuariosActivos,
+  guardarResultadoVisita,
 } from "../db/crm.js";
 import { obtenerConversacionProducto } from "../db/productoDb.js";
 
@@ -117,6 +118,45 @@ router.post("/webhook/:producto/asignar-asesor", async (req, res) => {
     res.json({ ok: true, asesor: { id: usuario.id, nombre: usuario.nombre } });
   } catch (error) {
     console.error("Error asignando asesor vía WhatsApp:", error);
+    res.status(500).json({ error: "Error interno" });
+  }
+});
+
+// El bot llama a esta ruta cuando el asesor asignado (o alguien del equipo)
+// responde por WhatsApp a la pregunta de "¿cómo te fue con la visita?"
+// citando ese mensaje (ver manejarRespuestaResultadoVisita en el bot).
+router.post("/webhook/:producto/resultado-visita", async (req, res) => {
+  try {
+    const slug = req.params.producto;
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).json({ error: "Producto no encontrado" });
+
+    const secretoEsperado = process.env[producto.secretoEnvVar];
+    const secretoRecibido = req.headers["x-interno-secret"];
+    if (!secretoEsperado || secretoRecibido !== secretoEsperado) {
+      return res.status(403).json({ error: "No autorizado" });
+    }
+
+    const { telefonoCliente, resultado } = req.body;
+    const resultadosValidos = ["asistio", "no_asistio", "reagendada"];
+    if (!telefonoCliente || !resultadosValidos.includes(resultado)) {
+      return res.status(400).json({
+        error: "Falta 'telefonoCliente' o 'resultado' inválido (asistio | no_asistio | reagendada)",
+      });
+    }
+
+    await guardarResultadoVisita(slug, telefonoCliente, resultado);
+    await registrarEvento(slug, telefonoCliente, "visita_resultado", {
+      por: "WhatsApp (asesor)",
+      resultado,
+    });
+
+    const io = req.app.get("io");
+    io.to(`producto:${slug}`).emit("novedad", { producto: slug, telefono: telefonoCliente });
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error guardando resultado de visita vía WhatsApp:", error);
     res.status(500).json({ error: "Error interno" });
   }
 });
