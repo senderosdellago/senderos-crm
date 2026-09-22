@@ -148,6 +148,26 @@ export async function asegurarEsquema() {
     );
   `);
 
+  // Propuestas generadas desde el Cotizador — el PDF se guarda COMPLETO en
+  // la base de datos (BYTEA), no como archivo en el disco de Railway, que
+  // se borra en cada despliegue (mismo motivo que brujula_estado más abajo).
+  // `telefono` puede quedar vacío si alguien genera una cotización sin
+  // partir de un lead puntual del CRM — en ese caso simplemente no aparece
+  // en la sección "Cotizaciones" de ninguna conversación.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cotizaciones (
+      id SERIAL PRIMARY KEY,
+      producto TEXT NOT NULL,
+      telefono TEXT,
+      nombre_cliente TEXT,
+      nombre_archivo TEXT NOT NULL,
+      archivo_pdf BYTEA NOT NULL,
+      creado_por_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_cotizaciones_lead ON cotizaciones (producto, telefono);`);
+
   // Brújula: sistema de seguimiento de compromisos (dashboard + hitos +
   // matriz de tareas). Todo el estado vive como un solo JSON por producto
   // — igual que como funcionaba de artifact en claude.ai, solo que ahora
@@ -690,6 +710,44 @@ export async function listarTareasLead(producto, telefono) {
     [producto, telefono]
   );
   return resultado.rows;
+}
+
+// `archivoPdf` es un Buffer con los bytes reales del PDF (ver
+// routes/cotizador.js: llega en base64 desde el navegador y se convierte
+// antes de llamar esta función).
+export async function guardarCotizacion({ producto, telefono, nombreCliente, nombreArchivo, archivoPdf, creadoPorId }) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `INSERT INTO cotizaciones (producto, telefono, nombre_cliente, nombre_archivo, archivo_pdf, creado_por_id)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, creado_en`,
+    [producto, telefono || null, nombreCliente || null, nombreArchivo, archivoPdf, creadoPorId || null]
+  );
+  return resultado.rows[0];
+}
+
+// Lista liviana para mostrar en la conversación del lead — a propósito NO
+// trae `archivo_pdf` (puede pesar varios MB entre todas), solo se pide
+// completo al descargar una puntual (ver obtenerCotizacion).
+export async function listarCotizacionesLead(producto, telefono) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `SELECT c.id, c.nombre_archivo, c.creado_en, u.nombre AS creado_por_nombre
+     FROM cotizaciones c
+     LEFT JOIN usuarios u ON u.id = c.creado_por_id
+     WHERE c.producto = $1 AND c.telefono = $2
+     ORDER BY c.creado_en DESC`,
+    [producto, telefono]
+  );
+  return resultado.rows;
+}
+
+export async function obtenerCotizacion(id) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `SELECT id, producto, telefono, nombre_archivo, archivo_pdf FROM cotizaciones WHERE id = $1`,
+    [id]
+  );
+  return resultado.rows[0] || null;
 }
 
 // Todas las tareas pendientes (sin completar) de un producto, con el nombre

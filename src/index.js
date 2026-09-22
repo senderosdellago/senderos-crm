@@ -1,5 +1,10 @@
+// TIENE que ser el primer import: db/crm.js crea la conexión a la base de
+// datos (Pool) apenas se importa, no cuando se usa — si dotenv carga
+// después, DATABASE_URL todavía está vacía en ese momento y la conexión
+// cae al valor por defecto (localhost), fallando siempre en local (mismo
+// bug ya corregido antes en scripts/crear-usuario.js, pero nunca acá).
+import "dotenv/config";
 import express from "express";
-import dotenv from "dotenv";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { createServer } from "http";
@@ -23,8 +28,6 @@ import { revisarAsesoresDeVisitasProximas } from "./services/recordatoriosVisita
 import { procesarSecuenciaVisitas } from "./services/secuenciaVisitas.js";
 import { procesarConfirmacionVisitas } from "./services/confirmacionVisitas.js";
 
-dotenv.config();
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
@@ -36,7 +39,11 @@ app.set("io", io);
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 app.use(express.static(path.join(__dirname, "public")));
-app.use(express.json());
+// Límite subido de 100kb (el de por defecto) a 15mb: lo pide guardar las
+// cotizaciones del Cotizador, que llegan como un PDF en base64 dentro del
+// JSON (ver routes/cotizador.js) — con el límite por defecto, ese guardado
+// fallaba siempre (el body se rechazaba antes de llegar a esa ruta).
+app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 const PgSession = connectPgSimple(session);

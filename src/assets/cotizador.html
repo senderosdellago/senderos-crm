@@ -283,6 +283,11 @@
             <label for="clientName">Nombre del cliente</label>
             <input type="text" id="clientName" placeholder="Ej. Carolina Gómez" autocomplete="off">
           </div>
+          <div>
+            <label for="clientPhone">Teléfono del cliente (WhatsApp)</label>
+            <input type="text" id="clientPhone" placeholder="Ej. 573001234567" autocomplete="off">
+            <p class="hint">Si lo llenas, esta propuesta queda guardada en el CRM dentro de la conversación de ese cliente.</p>
+          </div>
         </div>
       </div>
 
@@ -542,7 +547,20 @@ function(r){"object"==typeof e&&void 0!==t?t.exports=r():"function"==typeof defi
   const zonaLabels = { R:"Zona R", N:"Zona N", F:"Zona F", G:"Zona G", I:"Zona I", M:"Zona M", K:"Zona K" };
 
   const clientName = document.getElementById('clientName');
+  const clientPhone = document.getElementById('clientPhone');
   const treatSel = document.getElementById('treatSel');
+
+  // Si se llega acá desde el botón "Cotizar" de un lead en el CRM (ver
+  // conversacion.ejs), la URL trae ?telefono=...&nombre=... — se
+  // precargan los dos campos para no tener que escribirlos a mano y para
+  // que la cotización quede bien enlazada con ese lead al guardarla.
+  (function precargarDesdeUrl() {
+    const parametros = new URLSearchParams(window.location.search);
+    const telefonoUrl = parametros.get('telefono');
+    const nombreUrl = parametros.get('nombre');
+    if (telefonoUrl) clientPhone.value = telefonoUrl;
+    if (nombreUrl) clientName.value = nombreUrl;
+  })();
 
   const compareToggle = document.getElementById('compareToggle');
   const compareToggle2 = document.getElementById('compareToggle2');
@@ -1055,11 +1073,23 @@ ${asesorSignatureLine()}`;
   const printBtn = document.getElementById('printBtn');
   const printStatus = document.getElementById('printStatus');
 
+  // Convierte el Blob del PDF a base64 para poder mandarlo dentro de un
+  // JSON normal a /cotizador/guardar (ver routes/cotizador.js).
+  function blobABase64(blob){
+    return new Promise((resolve, reject) => {
+      const lector = new FileReader();
+      lector.onloadend = () => resolve(lector.result.split(',')[1]);
+      lector.onerror = reject;
+      lector.readAsDataURL(blob);
+    });
+  }
+
   printBtn.addEventListener('click', async () => {
     const html = proposalInner.innerHTML;
     if(!html.trim()) return;
 
     const name = clientName.value.trim();
+    const telefono = clientPhone.value.trim();
     const filename = 'propuesta-' + slugify(name) + '.pdf';
 
     printStatus.textContent = 'Generando el PDF…';
@@ -1071,8 +1101,9 @@ ${asesorSignatureLine()}`;
       // ya se ven ahí, así que lo que ves es lo que se descarga. html2pdf
       // internamente toma una "foto" del elemento (con html2canvas) y arma
       // el PDF a partir de eso (con jsPDF) — por eso el logo y los colores
-      // salen igual que en pantalla.
-      await html2pdf()
+      // salen igual que en pantalla. Se pide como Blob (en vez de .save()
+      // directo) para poder, además de descargarlo, mandarlo guardar al CRM.
+      const blob = await html2pdf()
         .set({
           margin: [12, 12, 12, 12],
           filename: filename,
@@ -1082,8 +1113,37 @@ ${asesorSignatureLine()}`;
           pagebreak: { mode: ['css', 'legacy'] },
         })
         .from(proposalInner)
-        .save();
-      printStatus.textContent = `¡Listo! Se descargó "${filename}".`;
+        .outputPdf('blob');
+
+      descargarArchivoNavegador(filename, blob, 'application/pdf');
+
+      // Si se indicó el teléfono del cliente, además queda guardada dentro
+      // del CRM (visible en la conversación de ese lead). Si no hay
+      // teléfono (cotización "suelta", sin partir de un lead), simplemente
+      // se descarga como siempre, sin guardar nada — no es un error.
+      if (telefono) {
+        try {
+          const base64 = await blobABase64(blob);
+          const respuestaGuardado = await fetch('/cotizador/guardar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              producto: 'senderos',
+              telefono,
+              nombreCliente: name,
+              nombreArchivo: filename,
+              archivoPdfBase64: base64,
+            }),
+          });
+          if (!respuestaGuardado.ok) throw new Error('Respuesta no OK de /cotizador/guardar');
+          printStatus.textContent = `¡Listo! Se descargó "${filename}" y quedó guardada en el CRM.`;
+        } catch (errGuardado) {
+          console.error('Error guardando la cotización en el CRM:', errGuardado);
+          printStatus.textContent = `Se descargó "${filename}", pero no se pudo guardar en el CRM. Intenta generarla de nuevo más tarde para que quede registrada.`;
+        }
+      } else {
+        printStatus.textContent = `¡Listo! Se descargó "${filename}". (No se guardó en el CRM porque no se indicó el teléfono del cliente.)`;
+      }
     }catch(err){
       console.error(err);
       printStatus.textContent = 'No se pudo generar el PDF. Prueba "Descargar en Word" o usa "Copiar texto para WhatsApp" mientras tanto.';

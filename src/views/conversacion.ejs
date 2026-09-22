@@ -10,7 +10,7 @@
   <header class="encabezado">
     <div class="encabezado-marca">
       <img src="/img/logo-senderos.png" alt="Senderos del Lago" class="encabezado-logo" />
-      <a href="/bandeja?producto=<%= productoActual.slug %>" class="boton-enlace">&larr; Bandeja</a>
+      <a href="/bandeja?producto=<%= productoActual.slug %>" id="enlace-volver" class="boton-enlace">&larr; Volver</a>
       <strong><%= telefono %></strong>
       <span id="estado-conexion" class="punto-conexion"></span>
     </div>
@@ -40,6 +40,7 @@
       <div><span class="resumen-etiqueta">Clasificación</span><span class="etiqueta etiqueta-<%= conversacion.clasificacion %>"><%= conversacion.clasificacion %></span></div>
       <div class="resumen-acciones">
         <button id="boton-abrir-reagendar" class="boton boton-secundario">Reagendar</button>
+        <a class="boton boton-secundario" target="_blank" href="/cotizador?telefono=<%= encodeURIComponent(telefono) %>&nombre=<%= encodeURIComponent(nombreLead || '') %>">Cotizar</a>
         <% if (usuario.rol === "admin") { %>
           <button id="boton-eliminar-lead" class="boton boton-peligro" data-telefono="<%= telefono %>">Eliminar</button>
         <% } %>
@@ -115,6 +116,27 @@
           <% } %>
         </ul>
       </div>
+
+      <div class="panel-tareas">
+        <div class="panel-tareas-encabezado">
+          <span class="resumen-etiqueta">Cotizaciones generadas</span>
+        </div>
+        <ul class="lista-tareas">
+          <% cotizaciones.forEach((c) => { %>
+            <li>
+              <span>
+                <%= c.nombre_archivo %> —
+                <%= new Date(c.creado_en).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "short" }) %>
+                <% if (c.creado_por_nombre) { %><span class="texto-discreto">(<%= c.creado_por_nombre %>)</span><% } %>
+              </span>
+              <a class="boton-enlace" href="/cotizador/descargas/<%= c.id %>">Descargar</a>
+            </li>
+          <% }) %>
+          <% if (cotizaciones.length === 0) { %>
+            <li class="texto-discreto">Sin cotizaciones generadas todavía.</li>
+          <% } %>
+        </ul>
+      </div>
     </div>
 
     <div id="lista-mensajes" class="lista-mensajes" data-producto="<%= productoActual.slug %>" data-telefono="<%= telefono %>">
@@ -182,6 +204,18 @@
   <script>
     const PRODUCTO = "<%= productoActual.slug %>";
     const TELEFONO = "<%= telefono %>";
+
+    // "Volver" regresa literalmente a la pantalla de donde viniste (Visitas
+    // Agendadas, Bandeja, Embudo, etc.) usando el historial del navegador,
+    // en vez de mandarte siempre a Bandeja como antes. Si no hay de dónde
+    // volver dentro del propio CRM (ej. abriste el link directo o en una
+    // pestaña nueva), se usa el enlace normal a Bandeja como respaldo.
+    document.getElementById("enlace-volver")?.addEventListener("click", (evento) => {
+      if (document.referrer && document.referrer.startsWith(window.location.origin) && window.history.length > 1) {
+        evento.preventDefault();
+        window.history.back();
+      }
+    });
   </script>
   <script src="/js/conversacion.js"></script>
 </body>

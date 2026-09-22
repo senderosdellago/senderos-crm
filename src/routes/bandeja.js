@@ -7,6 +7,7 @@ import {
   listarUsuariosActivos,
   asegurarLeadCrm,
   listarTareasLead,
+  listarCotizacionesLead,
   listarTelefonosEliminados,
   listarLeadsEliminados,
 } from "../db/crm.js";
@@ -114,12 +115,13 @@ router.get("/conversacion/:producto/:telefono", async (req, res) => {
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
-    const [conversacion, leadCrm, etapas, asesores, tareas] = await Promise.all([
+    const [conversacion, leadCrm, etapas, asesores, tareas, cotizaciones] = await Promise.all([
       obtenerConversacionProducto(slug, telefono),
       asegurarLeadCrm(slug, telefono),
       listarEtapas(slug),
       listarUsuariosActivos(),
       listarTareasLead(slug, telefono),
+      listarCotizacionesLead(slug, telefono),
     ]);
 
     if (!conversacion) return res.status(404).send("Conversación no encontrada");
@@ -141,6 +143,7 @@ router.get("/conversacion/:producto/:telefono", async (req, res) => {
       etapas,
       asesores,
       tareas,
+      cotizaciones,
       usuario: req.session.usuario,
     });
   } catch (error) {
