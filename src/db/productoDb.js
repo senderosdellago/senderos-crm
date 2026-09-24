@@ -27,7 +27,15 @@ function obtenerPool(slug) {
   return pool;
 }
 
-export async function listarConversacionesProducto(slug, { limite = 200 } = {}) {
+// El límite es solo una salvaguarda contra un problema futuro de tamaño, NO
+// un filtro intencional — antes estaba en 200 y, con la base ya en 700+
+// conversaciones, empezó a cortar en silencio leads asignados y con visita
+// agendada que simplemente no habían escrito hace poco (desaparecían de
+// Bandeja aunque tuvieran asesor). Se subió a 5000 el 24-sep-2026 (cubre años
+// al ritmo actual); si el negocio llega a decenas de miles de leads, esto
+// debería reemplazarse por una consulta paginada/filtrada en vez de traer
+// todo y filtrar en el servidor.
+export async function listarConversacionesProducto(slug, { limite = 5000 } = {}) {
   const pool = obtenerPool(slug);
   const resultado = await pool.query(
     `SELECT
@@ -56,6 +64,11 @@ export async function listarConversacionesProducto(slug, { limite = 200 } = {}) 
 // Solo el ÚLTIMO mensaje de cada conversación, sin traer el historial
 // completo (que puede ser pesado) — usa indexado directo de Postgres sobre
 // el jsonb para quedarse solo con el último elemento del arreglo.
+//
+// NOTA sobre el límite de listarConversacionesParaTriage (abajo): mismo caso
+// que en listarConversacionesProducto, ver el comentario ahí — se subió de
+// 300 a 5000 el 24-sep-2026 porque estaba haciendo desaparecer leads
+// asignados de Oportunidades/Embudo/Dashboard sin ningún aviso.
 export async function listarUltimosMensajes(slug) {
   const pool = obtenerPool(slug);
   const resultado = await pool.query(
@@ -69,7 +82,7 @@ export async function listarUltimosMensajes(slug) {
   return resultado.rows;
 }
 
-export async function listarConversacionesParaTriage(slug, { limite = 300 } = {}) {
+export async function listarConversacionesParaTriage(slug, { limite = 5000 } = {}) {
   const pool = obtenerPool(slug);
   const resultado = await pool.query(
     `SELECT
