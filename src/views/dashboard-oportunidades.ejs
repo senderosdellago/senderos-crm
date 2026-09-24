@@ -36,6 +36,18 @@
     <h1 class="titulo-pagina">Oportunidades Activas (<%= oportunidades.length %>)</h1>
     <p class="texto-discreto">Haz clic sobre la etapa o el valor para editarlos. Remarketing y No contactar no aparecen aquí — ya no son oportunidades activas.</p>
 
+    <% if (usuario.rol === "admin") { %>
+      <div class="filtro-etapa-contenedor">
+        <label for="filtro-asesor-oportunidades">Ver leads de:</label>
+        <select id="filtro-asesor-oportunidades" onchange="window.location.href = '/dashboard/oportunidades?producto=<%= productoActual.slug %>&asesor=' + this.value">
+          <option value="todos" <%= asesorFiltro === "todos" ? "selected" : "" %>>Todos</option>
+          <% usuariosActivos.forEach((u) => { %>
+            <option value="<%= u.id %>" <%= asesorFiltro === String(u.id) ? "selected" : "" %>><%= u.nombre %></option>
+          <% }) %>
+        </select>
+      </div>
+    <% } %>
+
     <div class="filtro-etapa-contenedor">
       <label for="filtro-etapa">Filtrar por etapa:</label>
       <select id="filtro-etapa">

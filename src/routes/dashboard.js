@@ -441,14 +441,29 @@ router.get("/dashboard/oportunidades", async (req, res) => {
     const producto = obtenerProducto(slug);
     if (!producto) return res.status(404).send("Producto no encontrado");
 
-    const oportunidades = await obtenerOportunidades(slug, req.session.usuario);
-    const etapas = await listarEtapas(slug);
+    const usuario = req.session.usuario;
+    let [oportunidades, etapas, usuariosActivos] = await Promise.all([
+      obtenerOportunidades(slug, usuario),
+      listarEtapas(slug),
+      usuario.rol === "admin" ? listarUsuariosActivos() : Promise.resolve([]),
+    ]);
+
+    // Filtro por persona: SOLO un admin puede elegir ver a alguien más — un
+    // asesor ya está limitado a lo suyo desde obtenerOportunidades. Mismo
+    // patrón y mismo query param "asesor" que /dashboard/embudo, para que la
+    // vista de tabla y la de Kanban se comporten igual.
+    const asesorFiltro = req.query.asesor || "todos";
+    if (usuario.rol === "admin" && asesorFiltro !== "todos") {
+      oportunidades = oportunidades.filter((o) => String(o.asesor_id) === asesorFiltro);
+    }
+
     const etapasSeleccionables = etapas.filter(
       (e) => e.nombre !== "Remarketing" && e.nombre !== "No contactar"
     );
 
     // Conteo de cuántas oportunidades hay en cada etapa — para el filtro y
-    // el resumen de arriba de la tabla.
+    // el resumen de arriba de la tabla. Se calcula DESPUÉS del filtro por
+    // asesor, así que refleja solo lo que se está mostrando.
     const conteoPorEtapa = {};
     for (const e of etapasSeleccionables) conteoPorEtapa[e.nombre] = 0;
     for (const o of oportunidades) {
@@ -458,10 +473,12 @@ router.get("/dashboard/oportunidades", async (req, res) => {
     res.render("dashboard-oportunidades", {
       productos,
       productoActual: producto,
-      usuario: req.session.usuario,
+      usuario,
       oportunidades,
       etapas: etapasSeleccionables,
       conteoPorEtapa,
+      usuariosActivos,
+      asesorFiltro,
     });
   } catch (error) {
     console.error("Error cargando oportunidades:", error);
