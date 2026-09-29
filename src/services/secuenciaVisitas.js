@@ -62,7 +62,7 @@ function diasEntre(fechaIsoA, fechaIsoB) {
   return Math.round((new Date(`${fechaIsoB}T00:00:00Z`) - new Date(`${fechaIsoA}T00:00:00Z`)) / 86400000);
 }
 
-async function llamarBotEnviarPlantilla(producto, telefono, plantilla, parametros, headerMedia) {
+async function llamarBotEnviarPlantilla(producto, telefono, plantilla, parametros, headerMedia, textoRegistro) {
   const botUrl = process.env[producto.botUrlEnvVar];
   const secreto = process.env[producto.secretoEnvVar];
   if (!botUrl || !secreto) {
@@ -72,7 +72,20 @@ async function llamarBotEnviarPlantilla(producto, telefono, plantilla, parametro
   const respuesta = await fetch(`${botUrl}/interno/enviar-plantilla`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Interno-Secret": secreto },
-    body: JSON.stringify({ telefono, plantilla, parametros, headerMedia: headerMedia || undefined }),
+    body: JSON.stringify({
+      telefono,
+      plantilla,
+      parametros,
+      headerMedia: headerMedia || undefined,
+      // Estos 4 toques van a un CLIENTE real (a diferencia de
+      // resumenVendedores.js, que le manda al equipo interno) — el bot debe
+      // guardarlos en el historial de la conversación y avisarle al CRM. Ver
+      // el comentario de /interno/enviar-plantilla en el bot (arreglado
+      // 26-sep-2026: antes esto se mandaba de verdad al cliente pero
+      // desaparecía para el CRM — no quedaba en el historial ni notificaba).
+      esCliente: true,
+      textoRegistro,
+    }),
   });
 
   if (!respuesta.ok) {
@@ -131,6 +144,10 @@ async function procesarProducto(producto) {
           { nombre: "hora", valor: horaVisita },
           { nombre: "lugar", valor: LUGAR_ENCUENTRO },
         ],
+        // Lo que queda guardado en el historial del CRM no es el texto exacto
+        // de la plantilla (eso vive solo en Meta) sino un resumen legible,
+        // para que el asesor entienda por qué el cliente recibió un mensaje.
+        textoRegistro: `🗓️ Recordatorio automático (secuencia de visitas): hoy es tu visita, a las ${horaVisita}, en ${LUGAR_ENCUENTRO}.`,
       };
     } else if (diasHastaVisita === 1) {
       candidato = {
@@ -139,6 +156,7 @@ async function procesarProducto(producto) {
           { nombre: "nombre", valor: nombreCliente },
           { nombre: "link", valor: GOOGLE_EARTH_LINK },
         ],
+        textoRegistro: `🗓️ Recordatorio automático (secuencia de visitas): tu visita es mañana. Ubicación: ${GOOGLE_EARTH_LINK}`,
       };
     } else {
       // Punto medio: solo tiene sentido si hay margen real entre el toque
@@ -150,6 +168,7 @@ async function procesarProducto(producto) {
           plantilla: "visita_prueba_social",
           parametros: [{ nombre: "nombre", valor: nombreCliente }],
           headerMedia: { tipo: "video", link: VIDEO_PRUEBA_SOCIAL_URL },
+          textoRegistro: `🎥 Video automático de testimonios enviado (secuencia de mantenimiento antes de la visita).`,
         };
       } else if (diasDesdeAgendamiento === 1 || diasDesdeAgendamiento === 2) {
         candidato = {
@@ -159,6 +178,7 @@ async function procesarProducto(producto) {
             { nombre: "fecha", valor: formatearFechaLegible(visita.fecha_visita_iso) },
             { nombre: "hora", valor: horaVisita },
           ],
+          textoRegistro: `💬 Mensaje automático de seguimiento (secuencia de visitas) — visita agendada para el ${formatearFechaLegible(visita.fecha_visita_iso)} a las ${horaVisita}.`,
         };
       }
     }
@@ -179,7 +199,8 @@ async function procesarProducto(producto) {
         visita.telefono,
         candidato.plantilla,
         candidato.parametros,
-        candidato.headerMedia
+        candidato.headerMedia,
+        candidato.textoRegistro
       );
       await registrarEnvioSecuencia(producto.slug, visita.telefono, visita.fecha_visita_iso, candidato.plantilla);
       console.log(
