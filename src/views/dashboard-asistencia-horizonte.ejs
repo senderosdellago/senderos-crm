@@ -23,6 +23,10 @@
         <a href="/brujula" target="_blank">Brújula</a>
       <% } %>
     </nav>
+    <form class="form-buscador-header" action="/buscar" method="GET">
+      <input type="hidden" name="producto" value="<%= productoActual.slug %>" />
+      <input type="search" name="q" placeholder="Buscar cliente (nombre o teléfono)" class="campo-buscador-header" />
+    </form>
     <div class="encabezado-usuario">
       <span><%= usuario.nombre %></span>
       <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>

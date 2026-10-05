@@ -61,6 +61,11 @@ const TIPOS_LISTA = {
     descripcion: "Paola sigue estas conversaciones sola por ahora.",
     colorClase: "",
   },
+  remarketing: {
+    titulo: "En remarketing",
+    descripcion: "Leads marcados para recontactar más adelante — fuera del embudo activo por ahora.",
+    colorClase: "",
+  },
 };
 
 function temasDeInteres(mediaUrlsEnviadas) {
@@ -113,6 +118,7 @@ function categorizar(conversaciones) {
   const calientesSinAgendar = [];
   const leadsEnfriandose = [];
   const enSeguimiento = [];
+  const enRemarketing = [];
 
   for (const c of conversaciones) {
     const enriquecida = {
@@ -129,6 +135,12 @@ function categorizar(conversaciones) {
 
     if (c.gestion_humana_notificada && !c.intervencion_humana) {
       requierenIntervencion.push(enriquecida);
+    } else if (c.en_remarketing) {
+      // Antes los leads en remarketing simplemente no aparecían en NINGUNA
+      // de las otras categorías (están excluidos a propósito de todas, ver
+      // los "!c.en_remarketing" de arriba y abajo) — no había dónde verlos
+      // desde el dashboard. Ahora tienen su propia categoría.
+      enRemarketing.push(enriquecida);
     } else if (
       c.clasificacion === "caliente" &&
       !c.visita_agendada &&
@@ -143,7 +155,7 @@ function categorizar(conversaciones) {
     }
   }
 
-  return { requierenIntervencion, calientesSinAgendar, leadsEnfriandose, enSeguimiento };
+  return { requierenIntervencion, calientesSinAgendar, leadsEnfriandose, enSeguimiento, enRemarketing };
 }
 
 // Separa las visitas agendadas en "próximas" (hoy en adelante) y "para
@@ -245,7 +257,7 @@ async function construirDatosDashboard(slug, usuario) {
   }));
   const conversacionesFiltradas = filtrarPorAsesor(conAsesor, usuario);
 
-  const { requierenIntervencion, calientesSinAgendar, leadsEnfriandose, enSeguimiento } =
+  const { requierenIntervencion, calientesSinAgendar, leadsEnfriandose, enSeguimiento, enRemarketing } =
     categorizar(conversacionesFiltradas);
   const { proximas, porConfirmar } = organizarVisitas(visitas, mapaCrm, usuario);
   // Las métricas generales (para el panel de números) siempre son del
@@ -257,6 +269,7 @@ async function construirDatosDashboard(slug, usuario) {
     calientesSinAgendar,
     leadsEnfriandose,
     enSeguimiento,
+    enRemarketing,
     visitasProximas: proximas,
     visitasPorConfirmar: porConfirmar,
     metricas,
@@ -265,6 +278,7 @@ async function construirDatosDashboard(slug, usuario) {
       calientesSinAgendar: calientesSinAgendar.length,
       leadsEnfriandose: leadsEnfriandose.length,
       enSeguimiento: enSeguimiento.length,
+      enRemarketing: enRemarketing.length,
       visitasAgendadas: proximas.length + porConfirmar.length,
     },
   };
@@ -306,6 +320,7 @@ router.get("/dashboard", async (req, res) => {
       visitasAgendadas: datosTriage.resumen.visitasAgendadas,
       visitasPreview: datosTriage.visitasProximas.slice(0, 5),
       oportunidadesEnRiesgo: datosTriage.resumen.leadsEnfriandose,
+      enRemarketing: datosTriage.resumen.enRemarketing,
       actividadesHoy: misTareasHoy,
       oportunidadesPreview: oportunidades.slice(0, 5),
       cierresEsperados,
@@ -364,8 +379,73 @@ router.get("/dashboard/visitas", async (req, res) => {
   }
 });
 
-// Página de lista genérica para las otras 4 categorías — /dashboard/lista/intervencion,
-// /dashboard/lista/calientes, /dashboard/lista/enfriandose, /dashboard/lista/seguimiento.
+// Buscador global del encabezado (nombre o teléfono) — sin importar en qué
+// pantalla esté el lead. Si hay un solo resultado, va directo a su
+// conversación; si hay varios, muestra una lista corta para elegir. Mismo
+// filtro por rol que el resto del CRM: un asesor solo encuentra lo suyo.
+router.get("/buscar", async (req, res) => {
+  try {
+    const slug = req.query.producto || "senderos";
+    const producto = obtenerProducto(slug);
+    if (!producto) return res.status(404).send("Producto no encontrado");
+
+    const q = (req.query.q || "").trim();
+    if (!q) return res.redirect(`/dashboard?producto=${slug}`);
+
+    const usuario = req.session.usuario;
+    const [conversaciones, leadsCrm, telefonosEliminados] = await Promise.all([
+      listarConversacionesParaTriage(slug),
+      listarLeadsCrm(slug),
+      listarTelefonosEliminados(slug),
+    ]);
+
+    const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
+    const qMinuscula = q.toLowerCase();
+    const soloDigitos = q.replace(/\D/g, "");
+
+    const candidatos = conversaciones
+      .filter((c) => !telefonosEliminados.has(c.telefono))
+      .map((c) => {
+        const overlay = mapaCrm.get(c.telefono);
+        return {
+          telefono: c.telefono,
+          nombre: overlay?.nombre_override || c.nombre || c.telefono,
+          etapa_nombre: overlay?.etapa_nombre || null,
+          asesor_id: overlay?.asesor_id || null,
+          asesor_nombre: overlay?.asesor_nombre || null,
+        };
+      });
+
+    const visibles = filtrarPorAsesor(candidatos, usuario);
+    // Coincide por nombre (contiene el texto buscado) o por teléfono (solo
+    // si el texto tiene al menos 4 dígitos — evita que "5" encuentre medio
+    // directorio telefónico).
+    const resultados = visibles.filter((c) => {
+      const coincideNombre = c.nombre.toLowerCase().includes(qMinuscula);
+      const coincideTelefono = soloDigitos.length >= 4 && c.telefono.includes(soloDigitos);
+      return coincideNombre || coincideTelefono;
+    });
+
+    if (resultados.length === 1) {
+      return res.redirect(`/conversacion/${slug}/${resultados[0].telefono}`);
+    }
+
+    res.render("buscar-resultados", {
+      productos,
+      productoActual: producto,
+      usuario,
+      query: q,
+      resultados,
+    });
+  } catch (error) {
+    console.error("Error en /buscar:", error);
+    res.status(500).send("Error buscando");
+  }
+});
+
+// Página de lista genérica para las otras 5 categorías — /dashboard/lista/intervencion,
+// /dashboard/lista/calientes, /dashboard/lista/enfriandose, /dashboard/lista/seguimiento,
+// /dashboard/lista/remarketing.
 router.get("/dashboard/lista/:tipo", async (req, res) => {
   try {
     const slug = req.query.producto || "senderos";
@@ -381,6 +461,7 @@ router.get("/dashboard/lista/:tipo", async (req, res) => {
       calientes: { leads: datos.calientesSinAgendar, tipoTarjeta: "caliente" },
       enfriandose: { leads: datos.leadsEnfriandose, tipoTarjeta: "enfriandose" },
       seguimiento: { leads: datos.enSeguimiento, tipoTarjeta: "seguimiento" },
+      remarketing: { leads: datos.enRemarketing, tipoTarjeta: "remarketing" },
     };
     const { leads, tipoTarjeta } = mapaListas[req.params.tipo];
 

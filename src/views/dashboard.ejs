@@ -29,6 +29,10 @@
         <a href="/brujula" target="_blank">Brújula</a>
       <% } %>
     </nav>
+    <form class="form-buscador-header" action="/buscar" method="GET">
+      <input type="hidden" name="producto" value="<%= productoActual.slug %>" />
+      <input type="search" name="q" placeholder="Buscar cliente (nombre o teléfono)" class="campo-buscador-header" />
+    </form>
     <div class="encabezado-usuario">
       <span><%= usuario.nombre %> <% if (usuario.rol === "admin") { %>(admin)<% } %></span>
       <form method="POST" action="/logout"><button type="submit" class="boton-enlace">Salir</button></form>
@@ -53,6 +57,11 @@
         <p class="tarjeta-resumen-etiqueta">Oportunidades en Riesgo</p>
         <p class="metrica-grande numero-urgente"><%= oportunidadesEnRiesgo %></p>
         <p class="texto-discreto">Requieren atención</p>
+      </a>
+      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/lista/remarketing?producto=<%= productoActual.slug %>">
+        <p class="tarjeta-resumen-etiqueta">En Remarketing</p>
+        <p class="metrica-grande"><%= enRemarketing %></p>
+        <p class="texto-discreto">Ver todos →</p>
       </a>
       <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/tareas?producto=<%= productoActual.slug %>">
         <p class="tarjeta-resumen-etiqueta">Actividades Hoy</p>

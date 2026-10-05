@@ -226,6 +226,21 @@ select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
 .nav-principal a.activo { background: rgba(201,162,75,0.18); color: var(--dorado); font-weight: 600; opacity: 1; }
 .nav-principal a:hover:not(.activo) { background: rgba(255,255,255,0.08); opacity: 1; }
 
+/* Buscador global del encabezado (cliente por nombre o teléfono, ver
+   routes/dashboard.js -> /buscar y views/buscar-resultados.ejs) */
+.form-buscador-header { display: flex; align-items: center; }
+.campo-buscador-header {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(201,162,75,0.35);
+  border-radius: 6px;
+  color: var(--crema);
+  padding: 6px 10px;
+  font-size: 14px;
+  width: 190px;
+}
+.campo-buscador-header::placeholder { color: rgba(245,230,211,0.55); }
+.campo-buscador-header:focus { outline: none; border-color: var(--dorado); background: rgba(255,255,255,0.14); width: 230px; }
+
 .contenedor-dashboard { padding: 20px; max-width: 960px; margin: 0 auto; }
 
 .contenedor-embudo { padding: 20px; }

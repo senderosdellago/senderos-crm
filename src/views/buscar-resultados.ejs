@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><%= meta.titulo %> — <%= productoActual.nombre %></title>
+  <title>Buscar: <%= query %> — <%= productoActual.nombre %></title>
   <link rel="stylesheet" href="/css/estilos.css" />
 </head>
 <body>
@@ -27,7 +27,7 @@
     </nav>
     <form class="form-buscador-header" action="/buscar" method="GET">
       <input type="hidden" name="producto" value="<%= productoActual.slug %>" />
-      <input type="search" name="q" placeholder="Buscar cliente (nombre o teléfono)" class="campo-buscador-header" />
+      <input type="search" name="q" value="<%= query %>" placeholder="Buscar cliente (nombre o teléfono)" class="campo-buscador-header" />
     </form>
     <div class="encabezado-usuario">
       <span><%= usuario.nombre %></span>
@@ -37,12 +37,34 @@
 
   <main class="contenedor-dashboard">
     <a class="enlace-volver" href="/dashboard?producto=<%= productoActual.slug %>">← Volver al dashboard</a>
-    <h1 class="titulo-pagina <%= meta.colorClase %>"><%= meta.titulo %> (<%= leads.length %>)</h1>
-    <p class="texto-discreto"><%= meta.descripcion %></p>
+    <h1 class="titulo-pagina">Resultados para "<%= query %>" (<%= resultados.length %>)</h1>
 
-    <div class="lista-leads">
-      <%- include("parciales/leads-triage", { leads, tipo: tipoTarjeta, producto: productoActual.slug }) %>
-    </div>
+    <% if (resultados.length === 0) { %>
+      <p class="texto-discreto">No se encontró ningún cliente con ese nombre o teléfono.</p>
+    <% } else { %>
+      <table class="tabla-calendario">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Teléfono</th>
+            <th>Etapa</th>
+            <% if (usuario.rol === "admin") { %><th>Asesor</th><% } %>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% resultados.forEach((r) => { %>
+            <tr>
+              <td><%= r.nombre %></td>
+              <td><%= r.telefono %></td>
+              <td><%= r.etapa_nombre || "—" %></td>
+              <% if (usuario.rol === "admin") { %><td><%= r.asesor_nombre || "Sin asignar" %></td><% } %>
+              <td><a class="boton boton-secundario" href="/conversacion/<%= productoActual.slug %>/<%= r.telefono %>">Ver</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
   </main>
 
   <script>
