@@ -308,6 +308,12 @@
           <span>Tipo: <b id="metaTipo">—</b></span>
           <span>Precio lista: <b id="metaPrecio">—</b></span>
         </div>
+        <div class="field precio-venta" id="precioField" style="display:none;">
+          <label for="precio">Precio de venta (COP)</label>
+          <input type="number" id="precio" step="100000" min="0">
+          <p class="ceiling-note">Se carga de la lista; si lo cambias, este precio reemplaza al de lista en toda la oferta (planes, descuentos, PDF, Word y WhatsApp) · <button type="button" id="precioReset">volver al precio de lista</button></p>
+          <p class="warn-note" id="precioWarn">⚠ Precio por debajo de la lista.</p>
+        </div>
 
         <div class="plan-discount">
           <h3>Plan Equilibrado</h3>
@@ -323,7 +329,7 @@
             </div>
           </div>
           <p class="ceiling-note">Techo sugerido: <b id="desc2Ceil">—</b> (2.0%) · <button type="button" id="desc2Reset">usar sugerido</button></p>
-          <p class="warn-note" id="desc2Warn">⚠ Supera el techo del 2% del precio de lista.</p>
+          <p class="warn-note" id="desc2Warn">⚠ Supera el techo del 2% del precio de venta.</p>
         </div>
 
         <div class="plan-discount">
@@ -340,7 +346,7 @@
             </div>
           </div>
           <p class="ceiling-note">Techo permitido: <b id="desc3Ceil">—</b> (8.0%) · <button type="button" id="desc3Reset">usar sugerido (7%)</button></p>
-          <p class="warn-note" id="desc3Warn">⚠ Supera el techo del 8% del precio de lista.</p>
+          <p class="warn-note" id="desc3Warn">⚠ Supera el techo del 8% del precio de venta.</p>
         </div>
 
         <div class="field compare-toggle">
@@ -364,6 +370,12 @@
           <span>Tipo: <b id="metaTipoB">—</b></span>
           <span>Precio lista: <b id="metaPrecioB">—</b></span>
         </div>
+        <div class="field precio-venta" id="precioFieldB" style="display:none;">
+          <label for="precioB">Precio de venta (COP)</label>
+          <input type="number" id="precioB" step="100000" min="0">
+          <p class="ceiling-note">Se carga de la lista; si lo cambias, este precio reemplaza al de lista en toda la oferta (planes, descuentos, PDF, Word y WhatsApp) · <button type="button" id="precioResetB">volver al precio de lista</button></p>
+          <p class="warn-note" id="precioWarnB">⚠ Precio por debajo de la lista.</p>
+        </div>
 
         <div class="plan-discount">
           <h3>Plan Equilibrado</h3>
@@ -378,7 +390,7 @@
             </div>
           </div>
           <p class="ceiling-note">Techo sugerido: <b id="desc2CeilB">—</b> (2.0%) · <button type="button" id="desc2ResetB">usar sugerido</button></p>
-          <p class="warn-note" id="desc2WarnB">⚠ Supera el techo del 2% del precio de lista.</p>
+          <p class="warn-note" id="desc2WarnB">⚠ Supera el techo del 2% del precio de venta.</p>
         </div>
 
         <div class="plan-discount">
@@ -394,7 +406,7 @@
             </div>
           </div>
           <p class="ceiling-note">Techo permitido: <b id="desc3CeilB">—</b> (8.0%) · <button type="button" id="desc3ResetB">usar sugerido (7%)</button></p>
-          <p class="warn-note" id="desc3WarnB">⚠ Supera el techo del 8% del precio de lista.</p>
+          <p class="warn-note" id="desc3WarnB">⚠ Supera el techo del 8% del precio de venta.</p>
         </div>
 
         <div class="field compare-toggle">
@@ -418,6 +430,12 @@
           <span>Tipo: <b id="metaTipoC">—</b></span>
           <span>Precio lista: <b id="metaPrecioC">—</b></span>
         </div>
+        <div class="field precio-venta" id="precioFieldC" style="display:none;">
+          <label for="precioC">Precio de venta (COP)</label>
+          <input type="number" id="precioC" step="100000" min="0">
+          <p class="ceiling-note">Se carga de la lista; si lo cambias, este precio reemplaza al de lista en toda la oferta (planes, descuentos, PDF, Word y WhatsApp) · <button type="button" id="precioResetC">volver al precio de lista</button></p>
+          <p class="warn-note" id="precioWarnC">⚠ Precio por debajo de la lista.</p>
+        </div>
 
         <div class="plan-discount">
           <h3>Plan Equilibrado</h3>
@@ -432,7 +450,7 @@
             </div>
           </div>
           <p class="ceiling-note">Techo sugerido: <b id="desc2CeilC">—</b> (2.0%) · <button type="button" id="desc2ResetC">usar sugerido</button></p>
-          <p class="warn-note" id="desc2WarnC">⚠ Supera el techo del 2% del precio de lista.</p>
+          <p class="warn-note" id="desc2WarnC">⚠ Supera el techo del 2% del precio de venta.</p>
         </div>
 
         <div class="plan-discount">
@@ -448,7 +466,7 @@
             </div>
           </div>
           <p class="ceiling-note">Techo permitido: <b id="desc3CeilC">—</b> (8.0%) · <button type="button" id="desc3ResetC">usar sugerido (7%)</button></p>
-          <p class="warn-note" id="desc3WarnC">⚠ Supera el techo del 8% del precio de lista.</p>
+          <p class="warn-note" id="desc3WarnC">⚠ Supera el techo del 8% del precio de venta.</p>
         </div>
       </div>
 
@@ -586,6 +604,10 @@ function(r){"object"==typeof e&&void 0!==t?t.exports=r():"function"==typeof defi
       metaArea: document.getElementById('metaArea'+suffix),
       metaTipo: document.getElementById('metaTipo'+suffix),
       metaPrecio: document.getElementById('metaPrecio'+suffix),
+      precioField: document.getElementById('precioField'+suffix),
+      precio: document.getElementById('precio'+suffix),
+      precioReset: document.getElementById('precioReset'+suffix),
+      precioWarn: document.getElementById('precioWarn'+suffix),
       desc2: document.getElementById('desc2'+suffix),
       desc2Pct: document.getElementById('desc2Pct'+suffix),
       desc2Ceil: document.getElementById('desc2Ceil'+suffix),
@@ -624,9 +646,21 @@ function(r){"object"==typeof e&&void 0!==t?t.exports=r():"function"==typeof defi
     });
   }
 
-  function currentLotForCtx(ctx){
+  // Lote tal como está en la lista de precios (sin tocar).
+  function baseLotForCtx(ctx){
     const z = ctx.zonaSel.value, lt = ctx.loteSel.value;
     return LOTS.find(l => l.zona === z && l.lote === lt) || null;
+  }
+  // Lote con el precio de venta que puso el asesor. Todo el resto del
+  // cotizador (planes, descuentos, tabla de inversión, WhatsApp, Word, PDF)
+  // lee el precio desde aquí, así que basta con cambiarlo en este punto.
+  // Si el campo está vacío o en cero, se usa el precio de lista.
+  function currentLotForCtx(ctx){
+    const base = baseLotForCtx(ctx);
+    if(!base) return null;
+    const editado = parseFloat(ctx.precio.value);
+    const precio = (editado > 0) ? editado : base.precio;
+    return Object.assign({}, base, { precio, precioLista: base.precio, precioEditado: precio !== base.precio });
   }
   function currentLot(){ return currentLotForCtx(SLOTS[0]); }
   function currentLotB(){ return compareToggle.checked ? currentLotForCtx(SLOTS[1]) : null; }
@@ -714,12 +748,24 @@ function(r){"object"==typeof e&&void 0!==t?t.exports=r():"function"==typeof defi
   }
 
   function onLotChangeForCtx(ctx){
-    const lot = currentLotForCtx(ctx);
-    if(!lot){ ctx.lotMeta.style.display='none'; render(); return; }
+    const base = baseLotForCtx(ctx);
+    if(!base){ ctx.lotMeta.style.display='none'; ctx.precioField.style.display='none'; render(); return; }
     ctx.lotMeta.style.display='flex';
-    ctx.metaArea.textContent = fmt1(lot.area) + ' m²';
-    ctx.metaTipo.textContent = lot.tipo;
-    ctx.metaPrecio.textContent = '$' + fmt(lot.precio) + ' COP';
+    ctx.precioField.style.display='block';
+    ctx.metaArea.textContent = fmt1(base.area) + ' m²';
+    ctx.metaTipo.textContent = base.tipo;
+    ctx.metaPrecio.textContent = '$' + fmt(base.precio) + ' COP';
+    ctx.precio.value = base.precio;
+    onPriceChangeForCtx(ctx);
+  }
+
+  // Cuando cambia el precio de venta: se vuelven a sugerir los descuentos y
+  // los techos (2% y 8%) sobre el NUEVO precio, igual que al elegir un lote.
+  function onPriceChangeForCtx(ctx){
+    const lot = currentLotForCtx(ctx);
+    if(!lot){ render(); return; }
+    ctx.precioWarn.textContent = '⚠ Precio por debajo de la lista ($' + fmt(lot.precioLista) + ').';
+    ctx.precioWarn.classList.toggle('show', lot.precio < lot.precioLista);
 
     ctx.desc2.value = suggestPlan2(lot.precio);
     ctx.desc2Ceil.textContent = '$' + fmt(ceilPlan2(lot.precio));
@@ -757,6 +803,8 @@ function(r){"object"==typeof e&&void 0!==t?t.exports=r():"function"==typeof defi
   SLOTS.forEach(ctx => {
     ctx.zonaSel.addEventListener('change', () => { populateLotesInto(ctx.zonaSel.value, ctx.loteSel); onLotChangeForCtx(ctx); });
     ctx.loteSel.addEventListener('change', () => onLotChangeForCtx(ctx));
+    ctx.precio.addEventListener('input', () => onPriceChangeForCtx(ctx));
+    ctx.precioReset.addEventListener('click', () => { const base=baseLotForCtx(ctx); if(base){ ctx.precio.value = base.precio; onPriceChangeForCtx(ctx); }});
 
     ctx.desc2.addEventListener('input', () => { syncFromCOPCtx(ctx, ctx.desc2, ctx.desc2Pct); updateWarningsCtx(ctx); render(); });
     ctx.desc2Pct.addEventListener('input', () => { syncFromPctCtx(ctx, ctx.desc2Pct, ctx.desc2); updateWarningsCtx(ctx); render(); });
