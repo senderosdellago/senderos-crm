@@ -1020,7 +1020,11 @@ function App() {
       ui.modal = { mode: "edit", draft: draft, confirmDelete: false };
       render(); return;
     }
-    if (action === "close-modal" || (action === "overlay-close" && ev.target === el)) { ui.modal = null; render(); return; }
+    // Las ventanas (tarea, hito, presupuesto) SOLO se cierran con la X o con
+    // "Cancelar" — antes también se cerraban al hacer clic fuera de la
+    // ventana (o al soltar el mouse fuera después de seleccionar texto) y se
+    // perdía lo que se estaba escribiendo sin guardar.
+    if (action === "close-modal") { ui.modal = null; render(); return; }
     if (action === "add-area") {
       var input = document.querySelector('[data-field="new-area"]');
       var val = input && input.value.trim();
@@ -1234,7 +1238,7 @@ function App() {
       var stAgain = document.querySelector('[data-field="subtarea-input"]');
       if (stAgain) stAgain.focus();
     }
-    if (ev.key === "Escape" && ui.modal) { ui.modal = null; render(); }
+    // Escape ya NO cierra la ventana abierta (mismo motivo: se perdían cambios).
   }
 
   function onChange(ev) {

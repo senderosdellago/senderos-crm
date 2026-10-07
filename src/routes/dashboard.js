@@ -400,16 +400,28 @@ router.get("/buscar", async (req, res) => {
     ]);
 
     const mapaCrm = new Map(leadsCrm.map((l) => [l.telefono, l]));
-    const qMinuscula = q.toLowerCase();
+    // Quita tildes y mayúsculas para comparar: "fabian" encuentra "Fabián".
+    const normalizar = (texto) =>
+      String(texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    // Cada palabra buscada debe aparecer en el nombre, en cualquier orden:
+    // "samboni fabian" encuentra "Fabián Samboní".
+    const palabras = normalizar(q).split(/\s+/).filter(Boolean);
     const soloDigitos = q.replace(/\D/g, "");
 
     const candidatos = conversaciones
       .filter((c) => !telefonosEliminados.has(c.telefono))
       .map((c) => {
         const overlay = mapaCrm.get(c.telefono);
+        // OJO: listarConversacionesParaTriage no trae una columna "nombre" —
+        // el nombre que capturó el bot vive en respuestas.nombre (antes se
+        // leía c.nombre, que siempre venía vacío, y por eso buscar por
+        // nombre solo encontraba a los leads con nombre editado en el CRM).
+        const nombreBot = c.respuestas?.nombre || "";
         return {
           telefono: c.telefono,
-          nombre: overlay?.nombre_override || c.nombre || c.telefono,
+          telefonoReal: c.respuestas?.telefono_real || "",
+          nombre: overlay?.nombre_override || nombreBot || c.telefono,
+          nombreBot,
           etapa_nombre: overlay?.etapa_nombre || null,
           asesor_id: overlay?.asesor_id || null,
           asesor_nombre: overlay?.asesor_nombre || null,
@@ -417,12 +429,15 @@ router.get("/buscar", async (req, res) => {
       });
 
     const visibles = filtrarPorAsesor(candidatos, usuario);
-    // Coincide por nombre (contiene el texto buscado) o por teléfono (solo
-    // si el texto tiene al menos 4 dígitos — evita que "5" encuentre medio
-    // directorio telefónico).
+    // Coincide por nombre (el editado en el CRM o el que capturó el bot) o
+    // por teléfono (el de WhatsApp o el que el cliente dio aparte) — el
+    // teléfono solo si el texto tiene al menos 4 dígitos, para que "5" no
+    // encuentre medio directorio telefónico.
     const resultados = visibles.filter((c) => {
-      const coincideNombre = c.nombre.toLowerCase().includes(qMinuscula);
-      const coincideTelefono = soloDigitos.length >= 4 && c.telefono.includes(soloDigitos);
+      const textoNombres = normalizar(`${c.nombre} ${c.nombreBot}`);
+      const coincideNombre = palabras.length > 0 && palabras.every((p) => textoNombres.includes(p));
+      const telefonos = `${c.telefono} ${String(c.telefonoReal).replace(/\D/g, "")}`;
+      const coincideTelefono = soloDigitos.length >= 4 && telefonos.includes(soloDigitos);
       return coincideNombre || coincideTelefono;
     });
 
