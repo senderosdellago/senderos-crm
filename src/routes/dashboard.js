@@ -13,6 +13,7 @@ import {
   obtenerMetaMensual,
   obtenerSecuenciaEtapas,
   listarTelefonosEliminados,
+  listarSeparacionesDelMes,
 } from "../db/crm.js";
 import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
 
@@ -23,6 +24,41 @@ router.use(requiereLogin);
 // agendada todavía) se considera que se está enfriando. Ajustable si con el
 // tiempo el número no se siente correcto.
 const DIAS_PARA_ENFRIARSE = 3;
+
+// ============ Definiciones comerciales de las tarjetas del dashboard ============
+// Etapas que ya son una venta (o más allá). Un lead aquí NO es una
+// oportunidad abierta: se cuenta en "Separaciones del mes", no en el pipeline.
+const ETAPAS_CIERRE = ["Separación", "Promesa", "Escritura", "Entrega"];
+// Etapas que suman a "Cierres esperados", ponderadas por su porcentaje.
+// Antes de la visita realizada el valor digitado es especulación pura.
+const ETAPAS_PONDERADAS = ["Visita realizada", "Negociación"];
+// Etapas donde un silencio largo sí es una oportunidad en riesgo: el cliente
+// ya conoció el lote o tiene una visita pendiente de reprogramar.
+const ETAPAS_RIESGO = ["Pendiente reprogramar visita", "Visita realizada", "Negociación"];
+// Días sin que el cliente escriba para considerar en riesgo una oportunidad
+// de ETAPAS_RIESGO. En lotes campestres la decisión toma semanas; 3 días
+// (el umbral de "enfriándose") marcaba casi todo como riesgo.
+const DIAS_RIESGO_OPORTUNIDAD = 7;
+// Cuántas actividades se muestran en "Mis Actividades de Hoy". La capacidad
+// real es de ~12 contactos por persona al día; la lista completa sigue en
+// /dashboard/tareas.
+const MAX_ACTIVIDADES_PREVIEW = 15;
+
+function esOportunidadAbierta(o) {
+  return !o.lead_dormido && !ETAPAS_CIERRE.includes(o.etapa_nombre);
+}
+
+function esOportunidadEnRiesgo(o) {
+  return ETAPAS_RIESGO.includes(o.etapa_nombre) && diasDesde(o.ultimo_contacto) >= DIAS_RIESGO_OPORTUNIDAD;
+}
+
+// Prioridad de una etapa para ordenar tareas: más avanzada = más urgente.
+// Las etapas de cierre no tienen porcentaje (Promesa, Escritura, Entrega) o
+// tienen 100 — se tratan como máxima prioridad (hay plata comprometida).
+function prioridadEtapa(nombre, porcentaje) {
+  if (ETAPAS_CIERRE.includes(nombre)) return 100;
+  return porcentaje ?? 0;
+}
 
 // Nombres legibles de cada tema de multimedia, para mostrar qué le
 // interesó al cliente sin exponerle al vendedor el nombre técnico del
@@ -293,21 +329,65 @@ router.get("/dashboard", async (req, res) => {
     const usuario = req.session.usuario;
     const hoy = hoyISOColombia();
 
-    const [datosTriage, oportunidades, tareasPendientes, conversaciones] = await Promise.all([
-      construirDatosDashboard(slug, usuario),
-      obtenerOportunidades(slug, usuario),
-      listarTareasPendientes(slug),
-      listarConversacionesParaTriage(slug),
-    ]);
+    const [datosTriage, oportunidades, tareasPendientes, conversaciones, separacionesCrudas, usuariosActivos] =
+      await Promise.all([
+        construirDatosDashboard(slug, usuario),
+        obtenerOportunidades(slug, usuario),
+        listarTareasPendientes(slug),
+        listarConversacionesParaTriage(slug),
+        listarSeparacionesDelMes(slug),
+        usuario.rol === "admin" ? listarUsuariosActivos() : Promise.resolve([]),
+      ]);
     const mapaNombres = new Map(conversaciones.map((c) => [c.telefono, c.respuestas?.nombre]));
 
-    const misTareasHoy = filtrarPorAsesor(tareasPendientes, usuario)
-      .filter((t) => new Date(t.fecha).toLocaleDateString("en-CA", { timeZone: "America/Bogota" }) <= hoy)
-      .map((t) => ({ ...t, nombre: mapaNombres.get(t.telefono) || t.telefono }));
+    // (1) Oportunidades abiertas: sin dormidos y sin lo que ya se vendió.
+    const oportunidadesAbiertas = oportunidades.filter(esOportunidadAbierta);
 
-    const cierresEsperados = oportunidades.reduce((suma, o) => suma + (o.valor_venta || 0), 0);
-    const metaMensual = usuario.rol === "admin" ? null : await obtenerMetaMensual(usuario.id);
-    const progresoMeta = metaMensual ? Math.min(100, Math.round((cierresEsperados / metaMensual) * 100)) : null;
+    // (2) Cierres esperados: solo Visita realizada y Negociación, cada valor
+    // multiplicado por el % de probabilidad de su etapa.
+    const ponderables = oportunidadesAbiertas.filter((o) => ETAPAS_PONDERADAS.includes(o.etapa_nombre));
+    const cierresEsperados = Math.round(
+      ponderables.reduce((suma, o) => suma + (o.valor_venta || 0) * ((o.etapa_porcentaje ?? 0) / 100), 0)
+    );
+    const ponderablesSinValor = ponderables.filter((o) => !o.valor_venta).length;
+
+    // (3) Separaciones del mes, filtradas por asesor igual que todo lo demás.
+    const separacionesMes = filtrarPorAsesor(separacionesCrudas, usuario);
+    const valorSeparadoMes = separacionesMes.reduce((suma, s) => suma + (Number(s.valor_venta) || 0), 0);
+    const separacionesSinValor = separacionesMes.filter((s) => !s.valor_venta).length;
+
+    // (7) Meta: un asesor ve la suya; el admin ve la suma de las metas del
+    // equipo (antes el admin siempre veía "Sin meta configurada").
+    const metaMensual =
+      usuario.rol === "admin"
+        ? usuariosActivos.reduce((suma, u) => suma + (Number(u.meta_mensual) || 0), 0) || null
+        : await obtenerMetaMensual(usuario.id);
+    const progresoMeta = metaMensual ? Math.min(100, Math.round((valorSeparadoMes / metaMensual) * 100)) : null;
+
+    // (4) En riesgo: oportunidades que ya visitaron, están en negociación o
+    // tienen visita por reprogramar, con 7+ días sin que el cliente escriba.
+    const oportunidadesEnRiesgo = oportunidadesAbiertas.filter(esOportunidadEnRiesgo).length;
+
+    // (5) Actividades: separar las de hoy de las vencidas, y ordenar por la
+    // etapa del lead (lo más cerca de la plata primero).
+    const etapaPorTelefono = new Map(oportunidades.map((o) => [o.telefono, o]));
+    const misTareas = filtrarPorAsesor(tareasPendientes, usuario)
+      .map((t) => {
+        const fechaTarea = new Date(t.fecha).toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+        const op = etapaPorTelefono.get(t.telefono);
+        return {
+          ...t,
+          nombre: mapaNombres.get(t.telefono) || t.telefono,
+          fechaTarea,
+          vencida: fechaTarea < hoy,
+          etapa_nombre: op?.etapa_nombre || null,
+          prioridad: prioridadEtapa(op?.etapa_nombre, op?.etapa_porcentaje),
+        };
+      })
+      .filter((t) => t.fechaTarea <= hoy);
+    const tareasHoy = misTareas.filter((t) => !t.vencida).length;
+    const tareasVencidas = misTareas.filter((t) => t.vencida).length;
+    misTareas.sort((a, b) => b.prioridad - a.prioridad || a.fechaTarea.localeCompare(b.fechaTarea));
 
     res.render("dashboard", {
       productos,
@@ -315,15 +395,26 @@ router.get("/dashboard", async (req, res) => {
       usuario,
       resumen: datosTriage.resumen,
       metricas: datosTriage.metricas,
-      misOportunidades: oportunidades.length,
-      misOportunidadesLista: oportunidades,
-      visitasAgendadas: datosTriage.resumen.visitasAgendadas,
+      misOportunidades: oportunidadesAbiertas.length,
+      misOportunidadesLista: oportunidadesAbiertas,
+      // (6) Visitas: próximas separadas de las que ya pasaron sin resultado.
+      visitasProximas: datosTriage.visitasProximas.length,
+      visitasSinResultado: datosTriage.visitasPorConfirmar.length,
       visitasPreview: datosTriage.visitasProximas.slice(0, 5),
-      oportunidadesEnRiesgo: datosTriage.resumen.leadsEnfriandose,
+      oportunidadesEnRiesgo,
+      diasRiesgo: DIAS_RIESGO_OPORTUNIDAD,
       enRemarketing: datosTriage.resumen.enRemarketing,
-      actividadesHoy: misTareasHoy,
-      oportunidadesPreview: oportunidades.slice(0, 5),
+      actividadesPreview: misTareas.slice(0, MAX_ACTIVIDADES_PREVIEW),
+      totalActividades: misTareas.length,
+      tareasHoy,
+      tareasVencidas,
+      oportunidadesPreview: oportunidadesAbiertas.slice(0, 5),
       cierresEsperados,
+      ponderablesCount: ponderables.length,
+      ponderablesSinValor,
+      separacionesMes: separacionesMes.length,
+      valorSeparadoMes,
+      separacionesSinValor,
       metaMensual,
       progresoMeta,
     });
@@ -522,6 +613,7 @@ async function obtenerOportunidades(slug, usuario) {
         valor_venta: overlay?.valor_venta ? Number(overlay.valor_venta) : null,
         asesor_id: overlay?.asesor_id || null,
         asesor_nombre: overlay?.asesor_nombre || null,
+        lead_dormido: Boolean(c.lead_dormido),
       };
     })
     .filter((o) => o.etapa_nombre !== "Remarketing" && o.etapa_nombre !== "No contactar");
@@ -553,6 +645,13 @@ router.get("/dashboard/oportunidades", async (req, res) => {
       oportunidades = oportunidades.filter((o) => String(o.asesor_id) === asesorFiltro);
     }
 
+    // ?riesgo=1 — la lista que abre la tarjeta "Oportunidades en Riesgo" del
+    // dashboard. Misma definición que la tarjeta (esOportunidadEnRiesgo).
+    const soloRiesgo = req.query.riesgo === "1";
+    if (soloRiesgo) {
+      oportunidades = oportunidades.filter((o) => esOportunidadAbierta(o) && esOportunidadEnRiesgo(o));
+    }
+
     const etapasSeleccionables = etapas.filter(
       (e) => e.nombre !== "Remarketing" && e.nombre !== "No contactar"
     );
@@ -575,6 +674,8 @@ router.get("/dashboard/oportunidades", async (req, res) => {
       conteoPorEtapa,
       usuariosActivos,
       asesorFiltro,
+      soloRiesgo,
+      diasRiesgo: DIAS_RIESGO_OPORTUNIDAD,
     });
   } catch (error) {
     console.error("Error cargando oportunidades:", error);

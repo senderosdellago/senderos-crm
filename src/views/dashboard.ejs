@@ -43,42 +43,48 @@
     <p class="saludo-dashboard">¡Bienvenido, <%= usuario.nombre.split(" ")[0] %>! Aquí tienes un resumen de tu día.</p>
 
     <div class="grid-metricas-vendedor">
-      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/visitas?producto=<%= productoActual.slug %>">
-        <p class="tarjeta-resumen-etiqueta">Visitas Agendadas</p>
-        <p class="metrica-grande numero-exito"><%= visitasAgendadas %></p>
-        <p class="texto-discreto">Ver todas →</p>
-      </a>
       <div class="tarjeta-metrica">
+        <p class="tarjeta-resumen-etiqueta">Separaciones del Mes</p>
+        <p class="metrica-grande numero-exito"><%= separacionesMes %></p>
+        <p class="texto-discreto">$<%= valorSeparadoMes.toLocaleString("es-CO") %><% if (separacionesSinValor > 0) { %> · <%= separacionesSinValor %> sin valor cargado<% } %></p>
+        <% if (metaMensual) { %>
+          <p class="texto-discreto">Meta<%= usuario.rol === "admin" ? " del equipo" : "" %>: $<%= metaMensual.toLocaleString("es-CO") %></p>
+          <div class="barra-progreso"><div class="barra-progreso-relleno" style="width: <%= progresoMeta %>%"></div></div>
+          <p class="texto-discreto"><%= progresoMeta %>%</p>
+        <% } else { %>
+          <p class="texto-discreto">Sin meta configurada<% if (usuario.rol === "admin") { %> — <a href="/dashboard/equipo?producto=<%= productoActual.slug %>">fijar en Equipo</a><% } %></p>
+        <% } %>
+      </div>
+      <div class="tarjeta-metrica">
+        <p class="tarjeta-resumen-etiqueta">Cierres Esperados</p>
+        <p class="metrica-grande">$<%= cierresEsperados.toLocaleString("es-CO") %></p>
+        <p class="texto-discreto">Ponderado · <%= ponderablesCount %> en visita realizada o negociación<% if (ponderablesSinValor > 0) { %> · <%= ponderablesSinValor %> sin valor<% } %></p>
+      </div>
+      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/visitas?producto=<%= productoActual.slug %>">
+        <p class="tarjeta-resumen-etiqueta">Visitas Próximas</p>
+        <p class="metrica-grande numero-exito"><%= visitasProximas %></p>
+        <p class="texto-discreto"><% if (visitasSinResultado > 0) { %><span class="texto-vencido"><%= visitasSinResultado %> pasadas sin resultado</span><% } else { %>Todas con resultado registrado<% } %> →</p>
+      </a>
+      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/oportunidades?producto=<%= productoActual.slug %>">
         <p class="tarjeta-resumen-etiqueta">Mis Oportunidades</p>
         <p class="metrica-grande"><%= misOportunidades %></p>
-        <p class="texto-discreto">Activas</p>
-      </div>
-      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/lista/enfriandose?producto=<%= productoActual.slug %>">
+        <p class="texto-discreto">Abiertas · sin dormidos ni vendidos</p>
+      </a>
+      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/oportunidades?producto=<%= productoActual.slug %>&riesgo=1">
         <p class="tarjeta-resumen-etiqueta">Oportunidades en Riesgo</p>
         <p class="metrica-grande numero-urgente"><%= oportunidadesEnRiesgo %></p>
-        <p class="texto-discreto">Requieren atención</p>
+        <p class="texto-discreto">Visitados o en negociación, <%= diasRiesgo %>+ días sin escribir →</p>
+      </a>
+      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/tareas?producto=<%= productoActual.slug %>">
+        <p class="tarjeta-resumen-etiqueta">Actividades Hoy</p>
+        <p class="metrica-grande numero-caliente"><%= tareasHoy %></p>
+        <p class="texto-discreto"><% if (tareasVencidas > 0) { %><span class="texto-vencido">+ <%= tareasVencidas %> vencidas</span><% } else { %>Sin vencidas<% } %> →</p>
       </a>
       <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/lista/remarketing?producto=<%= productoActual.slug %>">
         <p class="tarjeta-resumen-etiqueta">En Remarketing</p>
         <p class="metrica-grande"><%= enRemarketing %></p>
         <p class="texto-discreto">Ver todos →</p>
       </a>
-      <a class="tarjeta-metrica tarjeta-resumen-link" href="/dashboard/tareas?producto=<%= productoActual.slug %>">
-        <p class="tarjeta-resumen-etiqueta">Actividades Hoy</p>
-        <p class="metrica-grande numero-caliente"><%= actividadesHoy.length %></p>
-        <p class="texto-discreto">Pendientes</p>
-      </a>
-      <div class="tarjeta-metrica">
-        <p class="tarjeta-resumen-etiqueta">Cierres Esperados</p>
-        <p class="metrica-grande">$<%= cierresEsperados.toLocaleString("es-CO") %></p>
-        <% if (metaMensual) { %>
-          <p class="texto-discreto">Meta: $<%= metaMensual.toLocaleString("es-CO") %></p>
-          <div class="barra-progreso"><div class="barra-progreso-relleno" style="width: <%= progresoMeta %>%"></div></div>
-          <p class="texto-discreto"><%= progresoMeta %>%</p>
-        <% } else { %>
-          <p class="texto-discreto">Sin meta configurada</p>
-        <% } %>
-      </div>
     </div>
 
     <section class="panel-visitas-resumen">
@@ -112,17 +118,21 @@
     <div class="grid-tres-columnas">
       <section class="columna-dashboard">
         <h2 class="titulo-seccion">Mis Actividades de Hoy</h2>
+        <p class="texto-discreto">Primero las de leads más cerca del cierre.</p>
         <ul class="lista-actividades">
-          <% if (actividadesHoy.length === 0) { %>
+          <% if (actividadesPreview.length === 0) { %>
             <li class="texto-discreto">No tienes tareas para hoy 🎉</li>
           <% } %>
-          <% actividadesHoy.forEach((t) => { %>
+          <% actividadesPreview.forEach((t) => { %>
             <li>
-              <span class="actividad-concepto"><%= t.concepto %></span>
-              <span class="texto-discreto"><%= t.nombre %></span>
+              <span class="actividad-concepto"><%= t.concepto %><% if (t.vencida) { %> <span class="texto-vencido">(vencida)</span><% } %></span>
+              <span class="texto-discreto"><a href="/conversacion/<%= productoActual.slug %>/<%= t.telefono %>"><%= t.nombre %></a><% if (t.etapa_nombre) { %> · <%= t.etapa_nombre %><% } %></span>
             </li>
           <% }) %>
         </ul>
+        <% if (totalActividades > actividadesPreview.length) { %>
+          <a class="enlace-volver" href="/dashboard/tareas?producto=<%= productoActual.slug %>">Ver las <%= totalActividades %> pendientes →</a>
+        <% } %>
       </section>
 
       <section class="columna-dashboard">

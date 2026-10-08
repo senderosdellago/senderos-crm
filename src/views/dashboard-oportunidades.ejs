@@ -37,13 +37,18 @@
 
   <main class="contenedor-dashboard">
     <a class="enlace-volver" href="/dashboard?producto=<%= productoActual.slug %>">← Volver al dashboard</a>
+    <% if (soloRiesgo) { %>
+      <h1 class="titulo-pagina">Oportunidades en Riesgo (<%= oportunidades.length %>)</h1>
+      <p class="texto-discreto">Visita realizada, negociación o visita por reprogramar, con <%= diasRiesgo %> o más días sin que el cliente escriba. <a href="/dashboard/oportunidades?producto=<%= productoActual.slug %>">Ver todas las oportunidades →</a></p>
+    <% } else { %>
     <h1 class="titulo-pagina">Oportunidades Activas (<%= oportunidades.length %>)</h1>
+    <% } %>
     <p class="texto-discreto">Haz clic sobre la etapa o el valor para editarlos. Remarketing y No contactar no aparecen aquí — ya no son oportunidades activas.</p>
 
     <% if (usuario.rol === "admin") { %>
       <div class="filtro-etapa-contenedor">
         <label for="filtro-asesor-oportunidades">Ver leads de:</label>
-        <select id="filtro-asesor-oportunidades" onchange="window.location.href = '/dashboard/oportunidades?producto=<%= productoActual.slug %>&asesor=' + this.value">
+        <select id="filtro-asesor-oportunidades" onchange="window.location.href = '/dashboard/oportunidades?producto=<%= productoActual.slug %>&asesor=' + this.value<%= soloRiesgo ? " + '&riesgo=1'" : '' %>">
           <option value="todos" <%= asesorFiltro === "todos" ? "selected" : "" %>>Todos</option>
           <% usuariosActivos.forEach((u) => { %>
             <option value="<%= u.id %>" <%= asesorFiltro === String(u.id) ? "selected" : "" %>><%= u.nombre %></option>

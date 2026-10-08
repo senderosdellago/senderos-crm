@@ -878,6 +878,43 @@ export async function registrarUltimoAcceso(usuarioId) {
   await pool.query("UPDATE usuarios SET ultimo_acceso = now() WHERE id = $1", [usuarioId]);
 }
 
+// Separaciones del mes en curso (hora Colombia): leads cuya PRIMERA entrada
+// a una etapa de cierre (Separación, Promesa, Escritura o Entrega) ocurrió
+// este mes, según los eventos "cambio_etapa". Solo cuenta los que SIGUEN en
+// una etapa de cierre — si una separación se cayó y el lead se devolvió a
+// otra etapa, deja de contar. Devuelve una fila por lead con su asesor y su
+// valor de venta, para que la ruta filtre por asesor y sume.
+export async function listarSeparacionesDelMes(producto) {
+  await asegurarEsquema();
+  const resultado = await pool.query(
+    `
+    WITH etapas_cierre AS (
+      SELECT id FROM etapas
+      WHERE producto = $1 AND nombre IN ('Separación', 'Promesa', 'Escritura', 'Entrega')
+    ),
+    primera_entrada AS (
+      SELECT ev.telefono, MIN(ev.creado_en) AS separado_en
+      FROM eventos ev
+      WHERE ev.producto = $1
+        AND ev.tipo = 'cambio_etapa'
+        AND ev.detalle->>'etapaId' IS NOT NULL
+        AND (ev.detalle->>'etapaId')::int IN (SELECT id FROM etapas_cierre)
+      GROUP BY ev.telefono
+    )
+    SELECT pe.telefono, pe.separado_en, lc.asesor_id, lc.valor_venta
+    FROM primera_entrada pe
+    JOIN leads_crm lc ON lc.producto = $1 AND lc.telefono = pe.telefono
+    WHERE lc.eliminado_en IS NULL
+      AND lc.etapa_id IN (SELECT id FROM etapas_cierre)
+      AND (pe.separado_en AT TIME ZONE 'America/Bogota')
+          >= date_trunc('month', now() AT TIME ZONE 'America/Bogota')
+    ORDER BY pe.separado_en DESC
+    `,
+    [producto]
+  );
+  return resultado.rows;
+}
+
 export async function obtenerMetaMensual(usuarioId) {
   await asegurarEsquema();
   const resultado = await pool.query("SELECT meta_mensual FROM usuarios WHERE id = $1", [usuarioId]);
