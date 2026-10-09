@@ -82,7 +82,10 @@ export async function listarUltimosMensajes(slug) {
   return resultado.rows;
 }
 
-export async function listarConversacionesParaTriage(slug, { limite = 5000 } = {}) {
+// `incluirNoContactar`: por defecto los leads marcados "no contactar" se
+// excluyen (triage, embudo, oportunidades); el buscador global sí los
+// necesita, para poder encontrar a alguien aunque esté en esa etapa.
+export async function listarConversacionesParaTriage(slug, { limite = 5000, incluirNoContactar = false } = {}) {
   const pool = obtenerPool(slug);
   const resultado = await pool.query(
     `SELECT
@@ -106,12 +109,12 @@ export async function listarConversacionesParaTriage(slug, { limite = 5000 } = {
        jsonb_array_length(historial) AS total_mensajes,
        actualizado_en
      FROM conversaciones
-     WHERE no_contactar = false
+     WHERE ($2::boolean OR no_contactar = false)
      ORDER BY
        (gestion_humana_notificada AND NOT intervencion_humana) DESC,
        actualizado_en DESC
      LIMIT $1`,
-    [limite]
+    [limite, incluirNoContactar]
   );
   return resultado.rows;
 }

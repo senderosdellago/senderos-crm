@@ -100,8 +100,23 @@ router.post("/webhook/:producto/asignar-asesor", async (req, res) => {
     }
 
     const usuariosActivos = await listarUsuariosActivos();
-    const nombreBuscado = nombreAsesor.trim().toLowerCase();
-    const usuario = usuariosActivos.find((u) => u.nombre?.trim().toLowerCase() === nombreBuscado);
+    // El bot manda el nombre CORTO de su lista de equipo ("Diana", "Ana",
+    // "Paola"), pero en el CRM los usuarios pueden tener nombre completo
+    // ("Diana Bravo", "Ana Arango") — antes se exigía coincidencia exacta y
+    // la asignación por WhatsApp fallaba con 404 para esos casos. Ahora:
+    // 1) coincidencia exacta (sin tildes ni mayúsculas); 2) si no hay, por
+    // primer nombre, SOLO si un único usuario activo empieza así (si hay dos
+    // con el mismo primer nombre, no se adivina — sigue devolviendo 404).
+    const normalizarNombre = (texto) =>
+      String(texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
+    const nombreBuscado = normalizarNombre(nombreAsesor);
+    let usuario = usuariosActivos.find((u) => normalizarNombre(u.nombre) === nombreBuscado);
+    if (!usuario) {
+      const porPrimerNombre = usuariosActivos.filter(
+        (u) => normalizarNombre(u.nombre).split(" ")[0] === nombreBuscado.split(" ")[0]
+      );
+      if (porPrimerNombre.length === 1) usuario = porPrimerNombre[0];
+    }
     if (!usuario) {
       return res.status(404).json({ error: `No se encontró un asesor activo llamado "${nombreAsesor}"` });
     }

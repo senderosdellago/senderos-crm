@@ -16,6 +16,7 @@ import {
   restaurarLead,
   establecerEtapaEspecial,
   guardarTelefonoUsuario,
+  listarEtapas,
 } from "../db/crm.js";
 import { requiereLogin, requiereAdmin } from "../middleware/auth.js";
 import { enviarResumenesDiarios } from "../services/resumenVendedores.js";
@@ -127,6 +128,29 @@ router.post("/acciones/etapa", async (req, res) => {
       asesor: req.session.usuario.nombre,
       etapaId,
     });
+
+    // Entrar o salir de "No contactar" se le avisa al bot (ver
+    // /interno/no-contactar en senderos-bot): al entrar, cancela la visita
+    // (sale de Visitas Agendadas y de Google Calendar) y detiene los
+    // mensajes automáticos al cliente. Comparación sin tildes/mayúsculas por
+    // si la etapa se renombró. Si el bot falla, no se bloquea el cambio de
+    // etapa — solo se registra el error.
+    try {
+      const etapas = await listarEtapas(slug);
+      const esNoContactar = (id) => {
+        const etapa = etapas.find((e) => String(e.id) === String(id));
+        const nombre = String(etapa?.nombre || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+        return nombre === "no contactar";
+      };
+      const entra = esNoContactar(etapaId);
+      const sale = !entra && esNoContactar(leadActual.etapa_id);
+      if (entra || sale) {
+        await llamarBot(slug, "/interno/no-contactar", { telefono, activo: entra });
+      }
+    } catch (errorBot) {
+      console.error("Error avisando al bot del cambio de No contactar:", errorBot);
+    }
+
     emitirNovedad(req, slug, telefono);
     res.json({ ok: true });
   } catch (error) {

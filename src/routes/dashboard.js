@@ -485,7 +485,7 @@ router.get("/buscar", async (req, res) => {
 
     const usuario = req.session.usuario;
     const [conversaciones, leadsCrm, telefonosEliminados] = await Promise.all([
-      listarConversacionesParaTriage(slug),
+      listarConversacionesParaTriage(slug, { incluirNoContactar: true }),
       listarLeadsCrm(slug),
       listarTelefonosEliminados(slug),
     ]);
