@@ -37,7 +37,8 @@ function actualizarTabla(conversaciones) {
   cuerpo.innerHTML = conversaciones
     .map((c) => {
       const estado = c.intervencion_humana
-        ? `<span class="etiqueta etiqueta-intervenida">Con asesor${c.intervenido_por ? ` (${escaparHtml(c.intervenido_por)})` : ""}</span>`
+        ? `<span class="etiqueta etiqueta-intervenida">Con asesor${c.intervenido_por ? ` (${escaparHtml(c.intervenido_por)})` : ""}</span>` +
+          (c.te_respondio ? ` <span class="etiqueta etiqueta-te-respondio">Te respondió</span>` : "")
         : `<span class="etiqueta etiqueta-bot">Paola (bot)</span>`;
       const fecha = new Date(c.actualizado_en).toLocaleString("es-CO", { timeZone: "America/Bogota" });
       return `

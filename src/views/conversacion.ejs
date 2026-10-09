@@ -13,6 +13,8 @@
       <a href="/bandeja?producto=<%= productoActual.slug %>" id="enlace-volver" class="boton-enlace">&larr; Volver</a>
       <strong><%= telefono %></strong>
       <span id="estado-conexion" class="punto-conexion"></span>
+      <% const ultimoMensaje = (conversacion.historial || [])[(conversacion.historial || []).length - 1]; %>
+      <span id="etiqueta-te-respondio" class="etiqueta etiqueta-te-respondio <%= conversacion.intervencion_humana && ultimoMensaje?.role === "user" ? "" : "oculta" %>">Te respondió</span>
     </div>
     <div>
       <% if (usuario.rol === "admin") { %>

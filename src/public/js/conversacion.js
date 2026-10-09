@@ -20,9 +20,22 @@ async function refrescarMensajes() {
     if (!respuesta.ok) return;
     const datos = await respuesta.json();
     pintarMensajes(datos.conversacion.historial || []);
+    actualizarEtiquetaTeRespondio(datos.conversacion);
   } catch (error) {
     console.error("Error refrescando la conversación:", error);
   }
+}
+
+// "Te respondió": la conversación está tomada por un asesor y el último
+// mensaje es del cliente. Se apaga sola cuando el asesor responde desde el
+// CRM (ese mensaje queda como último, con rol "assistant").
+function actualizarEtiquetaTeRespondio(conversacion) {
+  const etiqueta = document.getElementById("etiqueta-te-respondio");
+  if (!etiqueta) return;
+  const historial = conversacion.historial || [];
+  const ultimo = historial[historial.length - 1];
+  const pendiente = !!conversacion.intervencion_humana && ultimo?.role === "user";
+  etiqueta.classList.toggle("oculta", !pendiente);
 }
 
 function pintarMensajes(historial) {

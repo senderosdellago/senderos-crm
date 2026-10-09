@@ -63,6 +63,7 @@
             <td>
               <% if (c.intervencion_humana) { %>
                 <span class="etiqueta etiqueta-intervenida">Con asesor<%= c.intervenido_por ? ` (${c.intervenido_por})` : "" %></span>
+                <% if (c.te_respondio) { %><span class="etiqueta etiqueta-te-respondio">Te respondió</span><% } %>
               <% } else { %>
                 <span class="etiqueta etiqueta-bot">Paola (bot)</span>
               <% } %>

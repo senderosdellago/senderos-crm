@@ -50,6 +50,7 @@ export async function listarConversacionesProducto(slug, { limite = 5000 } = {})
        intervencion_humana,
        intervenido_por,
        jsonb_array_length(historial) AS total_mensajes,
+       historial -> -1 ->> 'role' AS ultimo_rol,
        actualizado_en
      FROM conversaciones
      ORDER BY actualizado_en DESC

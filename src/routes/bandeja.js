@@ -62,7 +62,19 @@ async function construirListaCombinada(slug, usuario) {
       };
     });
 
-  return filtrarPorAsesor(combinadas, usuario);
+  // "Te respondió": conversación tomada por un asesor cuyo ÚLTIMO mensaje es
+  // del cliente — o sea, el cliente escribió y nadie le ha contestado
+  // todavía (el bot no responde mientras la conversación está tomada). Esas
+  // suben al principio de la lista; el resto conserva su orden (más reciente
+  // primero). Mismo criterio que la etiqueta en la conversación y que el
+  // aviso por WhatsApp (ver routes/webhook.js).
+  const conMarca = combinadas.map((c) => ({
+    ...c,
+    te_respondio: !!c.intervencion_humana && c.ultimo_rol === "user",
+  }));
+  conMarca.sort((a, b) => Number(b.te_respondio) - Number(a.te_respondio));
+
+  return filtrarPorAsesor(conMarca, usuario);
 }
 
 router.get("/bandeja", async (req, res) => {
