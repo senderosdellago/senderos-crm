@@ -120,6 +120,29 @@ export async function listarConversacionesParaTriage(slug, { limite = 5000, incl
   return resultado.rows;
 }
 
+// Candidatos a la plantilla de reactivación (ver services/reactivacionLeads.js):
+// conversaron con Paola, no agendaron, y su último mensaje fue hace entre
+// `minDias` y `maxDias` días. Solo calientes o tibios, o quien en algún
+// momento dijo que quería visitar. Los más recientes primero (más tibios).
+export async function listarCandidatasReactivacion(slug, { minDias = 3, maxDias = 30 } = {}) {
+  const pool = obtenerPool(slug);
+  const resultado = await pool.query(
+    `SELECT telefono, respuestas->>'nombre' AS nombre, clasificacion, quiere_visita, ultimo_mensaje_cliente_en
+     FROM conversaciones
+     WHERE visita_agendada = false
+       AND no_contactar = false
+       AND intervencion_humana = false
+       AND clasificacion != 'frio'
+       AND (clasificacion IN ('caliente', 'tibio') OR quiere_visita = 'si')
+       AND ultimo_mensaje_cliente_en IS NOT NULL
+       AND ultimo_mensaje_cliente_en <= now() - ($1 || ' days')::interval
+       AND ultimo_mensaje_cliente_en >= now() - ($2 || ' days')::interval
+     ORDER BY ultimo_mensaje_cliente_en DESC`,
+    [String(minDias), String(maxDias)]
+  );
+  return resultado.rows;
+}
+
 export async function obtenerConversacionProducto(slug, telefono) {
   const pool = obtenerPool(slug);
   const resultado = await pool.query(

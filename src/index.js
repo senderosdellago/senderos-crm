@@ -27,6 +27,7 @@ import { enviarResumenesDiarios } from "./services/resumenVendedores.js";
 import { revisarAsesoresDeVisitasProximas } from "./services/recordatoriosVisita.js";
 import { procesarSecuenciaVisitas } from "./services/secuenciaVisitas.js";
 import { procesarConfirmacionVisitas } from "./services/confirmacionVisitas.js";
+import { procesarReactivacionLeads } from "./services/reactivacionLeads.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -131,6 +132,20 @@ asegurarEsquema()
       () => {
         procesarSecuenciaVisitas().catch((error) =>
           console.error("[SecuenciaVisitas] Error general:", error)
+        );
+      },
+      { timezone: "America/Bogota" }
+    );
+
+    // Reactivación de leads que se callaron sin agendar (plantilla
+    // reactivacion_visita) — todos los días a las 10:00 a. m. hora Colombia.
+    // APAGADO por defecto: solo envía si en Railway existe la variable
+    // REACTIVACION_ACTIVA=true (ver services/reactivacionLeads.js).
+    cron.schedule(
+      "0 10 * * *",
+      () => {
+        procesarReactivacionLeads().catch((error) =>
+          console.error("[Reactivacion] Error general:", error)
         );
       },
       { timezone: "America/Bogota" }
