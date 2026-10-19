@@ -27,7 +27,7 @@ import { enviarResumenesDiarios } from "./services/resumenVendedores.js";
 import { revisarAsesoresDeVisitasProximas } from "./services/recordatoriosVisita.js";
 import { procesarSecuenciaVisitas } from "./services/secuenciaVisitas.js";
 import { procesarConfirmacionVisitas } from "./services/confirmacionVisitas.js";
-import { procesarReactivacionLeads } from "./services/reactivacionLeads.js";
+import { procesarReactivacionLeads, ejecutarPruebaReactivacion } from "./services/reactivacionLeads.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -95,6 +95,18 @@ asegurarEsquema()
     servidorHttp.listen(PORT, () => {
       console.log(`CRM corriendo en puerto ${PORT}`);
     });
+
+    // Modo prueba de la reactivación: solo actúa si existe la variable
+    // REACTIVACION_PRUEBA_TELEFONO (ver services/reactivacionLeads.js).
+    // Se corre una vez al arrancar, 15 s después, para no competir con el
+    // arranque del servidor.
+    if (process.env.REACTIVACION_PRUEBA_TELEFONO) {
+      setTimeout(() => {
+        ejecutarPruebaReactivacion().catch((error) =>
+          console.error("[Reactivacion][PRUEBA] Error general:", error)
+        );
+      }, 15000);
+    }
 
     // Recordatorio diario a cada vendedor por WhatsApp — todos los días a
     // las 8:00 a.m. hora Colombia (ver services/resumenVendedores.js). Si se
